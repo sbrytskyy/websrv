@@ -1,5 +1,37 @@
 #include "server.h"
 
+int read_incoming_data(int client_socket)
+{
+	char buffer[512];
+
+	int nbytes = read(client_socket, buffer, 512);
+	if (nbytes < 0)
+	{
+		perror("Error reading socket");
+		return -1;
+	}
+	else if (nbytes == 0)
+	{
+		return -1;
+	}
+	else
+	{
+		printf("Received message [%s], length: %d\n", buffer, nbytes);
+		return 0;
+	}
+}
+
+int write_response(int client_socket)
+{
+	//char* response = "HTTP/1.1 200 OK\n<html>\n<body>\n<h1>Hello, World!</h1>\n</body>\n</html>";
+
+	char* response = "Response\n";
+
+	printf("[write_response] [%s]\n", response);
+
+	return send(client_socket, response, strlen(response), 0);
+}
+
 int init_server_socket (uint16_t port)
 {
 	int handle;
@@ -29,17 +61,18 @@ int init_server_socket (uint16_t port)
 
 int process_incoming_connections(int server_socket)
 {
-	fd_set active_fd_set, read_fd_set;
+	fd_set active_fd_set, read_fd_set, write_fd_set;
 	struct sockaddr_in clientaddr;
 	unsigned int clientaddr_size = sizeof(clientaddr);
 
 	FD_ZERO(&active_fd_set);
+	FD_ZERO(&write_fd_set);
 	FD_SET(server_socket, &active_fd_set);
 
 	while(1)
 	{
 		read_fd_set = active_fd_set;
-		if (select(FD_SETSIZE, &read_fd_set, NULL, NULL, NULL) < 0)
+		if (select(FD_SETSIZE, &read_fd_set, &write_fd_set, NULL, NULL) < 0)
 		{
 			perror("Select function failed.");
 			return -1;
@@ -58,17 +91,30 @@ int process_incoming_connections(int server_socket)
 						return -1;
 					}
 
-					printf ("Server: connect from host %s, port %hd.\n", inet_ntoa (clientaddr.sin_addr), ntohs (clientaddr.sin_port));
+					printf ("[Web Server] connect from host %s, port %hd.\n", inet_ntoa (clientaddr.sin_addr), ntohs (clientaddr.sin_port));
 
 					FD_SET(client_socket, &active_fd_set);
 				}
 				else
 				{
-					// todo read data from socket
-
-					close(i);
-					FD_CLR(i, &active_fd_set);
+					if (read_incoming_data(i) < 0)
+					{
+						printf("End of connection to %d\n", i);
+						close(i);
+						FD_CLR(i, &active_fd_set);
+					}
+					else
+					{
+						FD_SET(i, &write_fd_set);
+					}
 				}
+			}
+			if (FD_ISSET(i, &write_fd_set))
+			{
+				int nsent = write_response(i);
+				printf("Sent %d bytes as response.\n", nsent);
+				//close(i);
+				FD_CLR(i, &write_fd_set);
 			}
 		}
 	}
