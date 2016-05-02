@@ -16,6 +16,12 @@ int read_incoming_data(int client_socket)
 	}
 	else
 	{
+		int index = nbytes;
+		if (nbytes > 2 && buffer[nbytes-2] == '\r' && buffer[nbytes-1] == '\n')
+		{
+			index = nbytes - 2;
+		}
+		buffer[index] = '\0';
 		printf("Received message [%s], length: %d\n", buffer, nbytes);
 		return 0;
 	}
@@ -109,12 +115,13 @@ int process_incoming_connections(int server_socket)
 					}
 				}
 			}
-			if (FD_ISSET(i, &write_fd_set))
+			else if (FD_ISSET(i, &write_fd_set))
 			{
 				int nsent = write_response(i);
 				printf("Sent %d bytes as response.\n", nsent);
-				//close(i);
+				close(i);
 				FD_CLR(i, &write_fd_set);
+				FD_CLR(i, &active_fd_set);
 			}
 		}
 	}

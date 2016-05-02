@@ -36,5 +36,7 @@ int main(void)
 
 	process_incoming_connections(server_socket);
 
+	close(server_socket);
+
 	return (EXIT_SUCCESS);
 }
