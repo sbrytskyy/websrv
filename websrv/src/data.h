@@ -12,6 +12,7 @@ struct SocketData
 {
 	int client_socket;
 	char* pCharData;
+	fd_set* write_fd_set;
 };
 
 #endif /* DATA_H_ */

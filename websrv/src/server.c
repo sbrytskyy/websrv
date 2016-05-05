@@ -1,7 +1,7 @@
 #include "server.h"
 
 
-int read_incoming_data(int _client_socket)
+int read_incoming_data(int _client_socket, fd_set* write_fd_set)
 {
 	char buffer[MAX_PACKET_SIZE];
 
@@ -29,6 +29,7 @@ int read_incoming_data(int _client_socket)
 		pSd->client_socket = _client_socket;
 		pSd->pCharData = malloc(strlen(buffer));
 		strcpy(pSd->pCharData, buffer);
+		pSd->write_fd_set = write_fd_set;
 
 		start_worker(pSd);
 
@@ -112,15 +113,11 @@ int process_incoming_connections(int server_socket)
 				}
 				else
 				{
-					if (read_incoming_data(i) < 0)
+					if (read_incoming_data(i, &write_fd_set) < 0)
 					{
 						printf("End of connection to %d\n", i);
 						close(i);
 						FD_CLR(i, &active_fd_set);
-					}
-					else
-					{
-						FD_SET(i, &write_fd_set);
 					}
 				}
 			}

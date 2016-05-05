@@ -25,6 +25,8 @@ static void * worker_thread(void * p)
 
 	printf("Socket=%d; Request [%s]\n", pSd->client_socket, pSd->pCharData);
 
+	FD_SET(pSd->client_socket, pSd->write_fd_set);
+
 	free(pSd->pCharData);
 	free(p);
 
