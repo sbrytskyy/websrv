@@ -1,10 +1,11 @@
 #include "server.h"
 
-int read_incoming_data(int client_socket)
-{
-	char buffer[512];
 
-	int nbytes = read(client_socket, buffer, 512);
+int read_incoming_data(int _client_socket)
+{
+	char buffer[MAX_PACKET_SIZE];
+
+	int nbytes = read(_client_socket, buffer, 512);
 	if (nbytes < 0)
 	{
 		perror("Error reading socket");
@@ -23,6 +24,14 @@ int read_incoming_data(int client_socket)
 		}
 		buffer[index] = '\0';
 		printf("Received message [%s], length: %d\n", buffer, nbytes);
+
+		struct SocketData* pSd = malloc(sizeof(struct SocketData));
+		pSd->client_socket = _client_socket;
+		pSd->pCharData = malloc(strlen(buffer));
+		strcpy(pSd->pCharData, buffer);
+
+		start_worker(pSd);
+
 		return 0;
 	}
 }
