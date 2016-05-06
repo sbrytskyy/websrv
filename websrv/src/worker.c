@@ -21,14 +21,16 @@ void start_worker(void * arg)
 
 static void * worker_thread(void * p)
 {
-	struct SocketData* pSd = (struct SocketData*)p;
+	struct SocketContext* pSc = (struct SocketContext*)p;
 
-	printf("Socket=%d; Request [%s]\n", pSd->client_socket, pSd->pCharData);
+	printf("Socket=%d; Request [%s]\n", pSc->client_socket, pSc->pRequest);
 
-	FD_SET(pSd->client_socket, pSd->write_fd_set);
+	char* response = "Response\n";
 
-	free(pSd->pCharData);
-	free(p);
+	pSc->pResponse = malloc(strlen(response) + sizeof(char));
+	strcpy(pSc->pResponse, response);
+
+	FD_SET(pSc->client_socket, pSc->write_fd_set);
 
     pthread_detach(pthread_self());
     return (p);

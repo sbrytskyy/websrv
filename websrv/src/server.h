@@ -17,8 +17,8 @@
 #include <string.h>
 #include <stdlib.h>
 
+#include "structures.h"
 
-#include "data.h"
 #include "worker.h"
 
 #define MAX_PACKET_SIZE 512

@@ -14,7 +14,7 @@
 #include <pthread.h>
 #include <string.h>
 
-#include "data.h"
+#include "structures.h"
 
 void start_worker(void * arg);
 

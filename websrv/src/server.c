@@ -1,11 +1,11 @@
 #include "server.h"
 
 
-int read_incoming_data(int _client_socket, fd_set* write_fd_set)
+int read_incoming_data(int client_socket, fd_set* write_fd_set)
 {
 	char buffer[MAX_PACKET_SIZE];
 
-	int nbytes = read(_client_socket, buffer, 512);
+	int nbytes = read(client_socket, buffer, 512);
 	if (nbytes < 0)
 	{
 		perror("Error reading socket");
@@ -25,13 +25,16 @@ int read_incoming_data(int _client_socket, fd_set* write_fd_set)
 		buffer[index] = '\0';
 		printf("Received message [%s], length: %d\n", buffer, nbytes);
 
-		struct SocketData* pSd = malloc(sizeof(struct SocketData));
-		pSd->client_socket = _client_socket;
-		pSd->pCharData = malloc(strlen(buffer));
-		strcpy(pSd->pCharData, buffer);
-		pSd->write_fd_set = write_fd_set;
+		struct SocketContext* pSc = malloc(sizeof(struct SocketContext));
+		pSc->client_socket = client_socket;
+		pSc->pRequest = malloc(strlen(buffer) + sizeof(char));
+		strcpy(pSc->pRequest, buffer);
+		pSc->write_fd_set = write_fd_set;
 
-		start_worker(pSd);
+		store_socket_context(pSc);
+
+		// todo refactor worker
+		start_worker(pSc);
 
 		return 0;
 	}
@@ -41,11 +44,18 @@ int write_response(int client_socket)
 {
 	//char* response = "HTTP/1.1 200 OK\n<html>\n<body>\n<h1>Hello, World!</h1>\n</body>\n</html>";
 
-	char* response = "Response\n";
+	printf("[write_response] socket=%d\n", client_socket);
 
+	struct SocketContext* pSc = get_socket_context(client_socket);
+
+	char* response = pSc->pResponse;
 	printf("[write_response] [%s]\n", response);
 
-	return send(client_socket, response, strlen(response), 0);
+	int result = send(client_socket, response, strlen(response), 0);
+
+	remove_socket_context(pSc);
+
+	return result;
 }
 
 int init_server_socket (uint16_t port)
@@ -77,6 +87,8 @@ int init_server_socket (uint16_t port)
 
 int process_incoming_connections(int server_socket)
 {
+	init_context_storage();
+
 	fd_set active_fd_set, read_fd_set, write_fd_set;
 	struct sockaddr_in clientaddr;
 	unsigned int clientaddr_size = sizeof(clientaddr);
@@ -88,12 +100,14 @@ int process_incoming_connections(int server_socket)
 	while(1)
 	{
 		read_fd_set = active_fd_set;
+		printf("Select running...");
 		if (select(FD_SETSIZE, &read_fd_set, &write_fd_set, NULL, NULL) < 0)
 		{
 			perror("Select function failed.");
 			return -1;
 		}
 
+		printf("Select fired...");
 		for(int i = 0; i < FD_SETSIZE; ++i)
 		{
 			if (FD_ISSET(i, &read_fd_set))
