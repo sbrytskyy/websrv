@@ -5,7 +5,6 @@
  *      Author: sbrytskyy
  */
 
-
 #include "structures.h"
 
 struct OutData* pOut;
@@ -58,7 +57,6 @@ int store_socket_context(struct SocketContext* pSc)
 	return -1;
 }
 
-
 int remove_socket_context(struct SocketContext* pSc)
 {
 	struct ListItem* pItem = pOut->pFirst;
@@ -71,14 +69,24 @@ int remove_socket_context(struct SocketContext* pSc)
 			{
 				pItem->pPrev->pNext = pItem->pNext;
 			}
+			else
+			{
+				pOut->pFirst = pItem->pNext;
+			}
+
 			if (pItem->pNext != NULL)
 			{
 				pItem->pNext->pPrev = pItem->pPrev;
+			}
+			else
+			{
+				pOut->pLast = pItem->pPrev;
 			}
 
 			free(pSc->pResponse);
 			free(pSc->pRequest);
 			free(pSc);
+
 			free(pItem);
 
 			return 0;
@@ -88,7 +96,6 @@ int remove_socket_context(struct SocketContext* pSc)
 
 	return -1;
 }
-
 
 struct ListItem* find(int sock)
 {

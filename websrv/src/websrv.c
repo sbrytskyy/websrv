@@ -25,10 +25,10 @@ int runServer()
 
 	puts("Server socket initialized successfully.");
 
-	if (listen (server_socket, 10) < 0)
+	if (listen(server_socket, 10) < 0)
 	{
-		perror ("Error listening server socket.");
-		exit (EXIT_FAILURE);
+		perror("Error listening server socket.");
+		exit(EXIT_FAILURE);
 	}
 
 	printf("Listening to server socket %d.\n", DEFAULT_SERVER_PORT);

@@ -1,14 +1,13 @@
 #include "server.h"
 
-
-int read_incoming_data(int client_socket, fd_set* write_fd_set)
+int read_incoming_data(int client_socket, int epoll_fd)
 {
 	char buffer[MAX_PACKET_SIZE];
 
 	int nbytes = read(client_socket, buffer, 512);
 	if (nbytes < 0)
 	{
-		perror("Error reading socket");
+		perror("Error reading socket: %m");
 		return -1;
 	}
 	else if (nbytes == 0)
@@ -18,7 +17,8 @@ int read_incoming_data(int client_socket, fd_set* write_fd_set)
 	else
 	{
 		int index = nbytes;
-		if (nbytes > 2 && buffer[nbytes-2] == '\r' && buffer[nbytes-1] == '\n')
+		if (nbytes > 2 && buffer[nbytes - 2] == '\r'
+				&& buffer[nbytes - 1] == '\n')
 		{
 			index = nbytes - 2;
 		}
@@ -29,7 +29,7 @@ int read_incoming_data(int client_socket, fd_set* write_fd_set)
 		pSc->client_socket = client_socket;
 		pSc->pRequest = malloc(strlen(buffer) + sizeof(char));
 		strcpy(pSc->pRequest, buffer);
-		pSc->write_fd_set = write_fd_set;
+		pSc->epoll_fd = epoll_fd;
 
 		store_socket_context(pSc);
 
@@ -58,15 +58,37 @@ int write_response(int client_socket)
 	return result;
 }
 
-int init_server_socket (uint16_t port)
+void close_handle(int handle)
+{
+	shutdown(handle, SHUT_RDWR);
+	close(handle);
+}
+
+int init_server_socket(uint16_t port)
 {
 	int handle;
+	int on = 1;
 	struct sockaddr_in serveraddr;
 
 	handle = socket(PF_INET, SOCK_STREAM, 0);
 	if (handle < 0)
 	{
-		perror("Error creating socket");
+		perror("Error creating socket: %m");
+		return -1;
+	}
+
+	if (fcntl(handle, F_SETFL, O_NONBLOCK))
+	{
+		perror("Could not make the socket non-blocking: %m\n");
+		close(handle);
+		return -1;
+	}
+
+	if (setsockopt(handle, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)))
+	{
+		fprintf(stderr, "Could not set socket %d option for reusability: %m\n",
+				handle);
+		close(handle);
 		return -1;
 	}
 
@@ -78,8 +100,27 @@ int init_server_socket (uint16_t port)
 
 	if (bind(handle, (struct sockaddr *) &serveraddr, sizeof(serveraddr)) < 0)
 	{
-		perror("Error binding socket");
+		perror("Error binding socket: %m");
 		return -1;
+	}
+	else
+	{
+		printf("Bound socket %d to address 'INADDR_ANY' and port %u\n", handle,
+				port);
+	}
+
+	if (listen(handle, SOMAXCONN))
+	{
+		fprintf(stderr, "Could not start listening on server socket %d: %m\n",
+				handle);
+		close_handle(handle);
+		return -1;
+	}
+	else
+	{
+		printf(
+				"Server socket %d started listening to address 'INADDR_ANY' and port %u\n",
+				handle, port);
 	}
 
 	return handle;
@@ -87,61 +128,164 @@ int init_server_socket (uint16_t port)
 
 int process_incoming_connections(int server_socket)
 {
+	int efd;
+	int result;
+	int pollsize = 1;
+
+	struct epoll_event ev;
+	struct epoll_event epoll_events[EPOLL_ARRAY_SIZE];
+
 	init_context_storage();
 
-	fd_set active_fd_set, read_fd_set, write_fd_set;
-	struct sockaddr_in clientaddr;
-	unsigned int clientaddr_size = sizeof(clientaddr);
+	efd = epoll_create(pollsize);
 
-	FD_ZERO(&active_fd_set);
-	FD_ZERO(&write_fd_set);
-	FD_SET(server_socket, &active_fd_set);
-
-	while(1)
+	if (efd < 0)
 	{
-		read_fd_set = active_fd_set;
-		printf("Select running...");
-		if (select(FD_SETSIZE, &read_fd_set, &write_fd_set, NULL, NULL) < 0)
+		perror("Could not create the epoll of file descriptors: %m");
+		close_handle(server_socket);
+		return 1;
+	}
+
+	ev.events = EPOLLIN;
+	ev.data.u64 = 0LL;
+	ev.data.fd = server_socket;
+
+	if (epoll_ctl(efd, EPOLL_CTL_ADD, server_socket, &ev) < 0)
+	{
+		fprintf(stderr, "Couldn't add server socket %d to epoll set: %m\n",
+				server_socket);
+		close_handle(server_socket);
+		return -1;
+	}
+
+	while (1)
+	{
+		printf("Starting epoll_wait on %d file descriptors\n", pollsize);
+
+		while ((result = epoll_wait(efd, epoll_events, EPOLL_ARRAY_SIZE, -1))
+				< 0)
 		{
-			perror("Select function failed.");
-			return -1;
+			if ((result < 0) && (errno != EINTR))
+			{
+				fprintf(stderr, "EPoll on %d file descriptors failed: %m\n",
+						pollsize);
+				close_handle(server_socket);
+				return -1;
+			}
 		}
 
-		printf("Select fired...");
-		for(int i = 0; i < FD_SETSIZE; ++i)
+		for (int i = 0; i < result; i++)
 		{
-			if (FD_ISSET(i, &read_fd_set))
+			uint32_t events = epoll_events[i].events;
+			int handle = epoll_events[i].data.fd;
+
+			if ((events & EPOLLERR) || (events & EPOLLHUP)
+					|| (events & EPOLLRDHUP))
 			{
-				if (i == server_socket)
+				if (handle == server_socket)
 				{
-					int client_socket = accept(server_socket, (struct sockaddr *) &clientaddr, &clientaddr_size);
-					if (client_socket < 0)
-					{
-						perror("Error accepting client connection");
-						return -1;
-					}
-
-					printf ("[Web Server] connect from host %s, port %hd.\n", inet_ntoa (clientaddr.sin_addr), ntohs (clientaddr.sin_port));
-
-					FD_SET(client_socket, &active_fd_set);
+					fprintf(stderr, "EPoll on %d file descriptors failed: %m\n",
+							pollsize);
+					close_handle(server_socket);
+					return -1;
 				}
 				else
 				{
-					if (read_incoming_data(i, &write_fd_set) < 0)
+					printf("Closing socket with handle %d\n", handle);
+					close_handle(handle);
+					continue;
+				}
+			}
+			else if (events & EPOLLIN)
+			{
+				if (handle == server_socket)
+				{
+					int client_socket;
+					struct sockaddr_in clientaddr;
+					socklen_t clientaddr_size = sizeof(clientaddr);
+					char buffer[1024];
+
+					while ((client_socket = accept(server_socket,
+							(struct sockaddr *) &clientaddr, &clientaddr_size))
+							< 0)
 					{
-						printf("End of connection to %d\n", i);
-						close(i);
-						FD_CLR(i, &active_fd_set);
+						if ((client_socket < 0) && (errno != EINTR))
+						{
+							fprintf(stderr, "Accept on socket %d failed: %m\n",
+									server_socket);
+							close_handle(server_socket);
+							return -1;
+						}
+					}
+
+					if (inet_ntop(AF_INET, &clientaddr.sin_addr.s_addr, buffer,
+							sizeof(buffer)) != NULL)
+					{
+						printf(
+								"[Web Server] Accepted connection from %s:%u, assigned new sd %d\n",
+								buffer, ntohs(clientaddr.sin_port),
+								client_socket);
+					}
+					else
+					{
+						perror(
+								"Failed to convert address from binary to text form: %m\n");
+					}
+
+					ev.events = EPOLLIN;
+					ev.data.u64 = 0LL;
+					ev.data.fd = client_socket;
+
+					if (epoll_ctl(efd, EPOLL_CTL_ADD, client_socket, &ev) < 0)
+					{
+						fprintf(
+						stderr,
+								"Couldn't add client socket %d to epoll set: %m\n",
+								client_socket);
+						close_handle(server_socket);
+						return -1;
+					}
+
+					pollsize++;
+				}
+				else
+				{
+					if (read_incoming_data(handle, efd) < 0)
+					{
+						fprintf(stderr, "Receive from socket %d failed: %m\n",
+								handle);
+						pollsize--;
+						close_handle(handle);
+						continue;
 					}
 				}
 			}
-			else if (FD_ISSET(i, &write_fd_set))
+			else if (events & EPOLLOUT)
 			{
-				int nsent = write_response(i);
-				printf("Sent %d bytes as response.\n", nsent);
-				close(i);
-				FD_CLR(i, &write_fd_set);
-				FD_CLR(i, &active_fd_set);
+				if (handle != server_socket)
+				{
+					int nsent = write_response(handle);
+					printf("Sent %d bytes as response.\n", nsent);
+					if (nsent <= 0)
+					{
+						close_handle(handle);
+						continue;
+					}
+					else
+					{
+						ev.events = EPOLLIN;
+						ev.data.u64 = 0LL;
+						ev.data.fd = handle;
+
+						if (epoll_ctl(efd, EPOLL_CTL_MOD, handle, &ev) < 0)
+						{
+							printf(
+									"Couldn't modify client socket %d in epoll set: %m\n",
+									handle);
+							close_handle(server_socket);
+						}
+					}
+				}
 			}
 		}
 	}

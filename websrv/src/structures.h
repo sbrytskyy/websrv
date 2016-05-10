@@ -8,10 +8,8 @@
 #ifndef STRUCTURES_H_
 #define STRUCTURES_H_
 
-
 #include <stdio.h>
 #include <stdlib.h>
-
 
 struct OutData
 {
@@ -32,9 +30,8 @@ struct SocketContext
 	int client_socket;
 	char* pRequest;
 	char* pResponse;
-	fd_set* write_fd_set;
+	int epoll_fd;
 };
-
 
 int init_context_storage();
 int store_socket_context(struct SocketContext* pSc);
