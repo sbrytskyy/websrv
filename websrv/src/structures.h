@@ -30,7 +30,6 @@ struct SocketContext
 	int client_socket;
 	char* pRequest;
 	char* pResponse;
-	int epoll_fd;
 };
 
 int init_context_storage();

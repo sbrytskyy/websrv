@@ -15,6 +15,7 @@
 #include <sys/epoll.h>
 
 #include "structures.h"
+#include "server.h"
 
 void start_worker(void * arg);
 

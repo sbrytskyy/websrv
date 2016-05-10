@@ -1,6 +1,8 @@
 #include "server.h"
 
-int read_incoming_data(int client_socket, int epoll_fd)
+int g_epoll_fd;
+
+int read_incoming_data(int client_socket)
 {
 	char buffer[MAX_PACKET_SIZE];
 
@@ -16,20 +18,13 @@ int read_incoming_data(int client_socket, int epoll_fd)
 	}
 	else
 	{
-		int index = nbytes;
-		if (nbytes > 2 && buffer[nbytes - 2] == '\r'
-				&& buffer[nbytes - 1] == '\n')
-		{
-			index = nbytes - 2;
-		}
-		buffer[index] = '\0';
+		buffer[nbytes] = '\0';
 		printf("Received message [%s], length: %d\n", buffer, nbytes);
 
 		struct SocketContext* pSc = malloc(sizeof(struct SocketContext));
 		pSc->client_socket = client_socket;
-		pSc->pRequest = malloc(strlen(buffer) + sizeof(char));
+		pSc->pRequest = malloc(nbytes);
 		strcpy(pSc->pRequest, buffer);
-		pSc->epoll_fd = epoll_fd;
 
 		store_socket_context(pSc);
 
@@ -38,6 +33,25 @@ int read_incoming_data(int client_socket, int epoll_fd)
 
 		return 0;
 	}
+}
+
+int set_socket_write_mode(int client_socket)
+{
+	struct epoll_event ev;
+
+	ev.events = EPOLLIN | EPOLLOUT;
+	ev.data.u64 = 0LL;
+	ev.data.fd = client_socket;
+
+	int result = epoll_ctl(g_epoll_fd, EPOLL_CTL_MOD, client_socket, &ev);
+
+	if (result < 0)
+	{
+		fprintf(stderr, "Couldn't modify client socket %d in epoll set: %m\n",
+				client_socket);
+	}
+
+	return result;
 }
 
 int write_response(int client_socket)
@@ -128,7 +142,6 @@ int init_server_socket(uint16_t port)
 
 int process_incoming_connections(int server_socket)
 {
-	int efd;
 	int result;
 	int pollsize = 1;
 
@@ -137,9 +150,9 @@ int process_incoming_connections(int server_socket)
 
 	init_context_storage();
 
-	efd = epoll_create(pollsize);
+	g_epoll_fd = epoll_create(pollsize);
 
-	if (efd < 0)
+	if (g_epoll_fd < 0)
 	{
 		perror("Could not create the epoll of file descriptors: %m");
 		close_handle(server_socket);
@@ -150,7 +163,7 @@ int process_incoming_connections(int server_socket)
 	ev.data.u64 = 0LL;
 	ev.data.fd = server_socket;
 
-	if (epoll_ctl(efd, EPOLL_CTL_ADD, server_socket, &ev) < 0)
+	if (epoll_ctl(g_epoll_fd, EPOLL_CTL_ADD, server_socket, &ev) < 0)
 	{
 		fprintf(stderr, "Couldn't add server socket %d to epoll set: %m\n",
 				server_socket);
@@ -162,7 +175,7 @@ int process_incoming_connections(int server_socket)
 	{
 		printf("Starting epoll_wait on %d file descriptors\n", pollsize);
 
-		while ((result = epoll_wait(efd, epoll_events, EPOLL_ARRAY_SIZE, -1))
+		while ((result = epoll_wait(g_epoll_fd, epoll_events, EPOLL_ARRAY_SIZE, -1))
 				< 0)
 		{
 			if ((result < 0) && (errno != EINTR))
@@ -236,7 +249,7 @@ int process_incoming_connections(int server_socket)
 					ev.data.u64 = 0LL;
 					ev.data.fd = client_socket;
 
-					if (epoll_ctl(efd, EPOLL_CTL_ADD, client_socket, &ev) < 0)
+					if (epoll_ctl(g_epoll_fd, EPOLL_CTL_ADD, client_socket, &ev) < 0)
 					{
 						fprintf(
 						stderr,
@@ -250,7 +263,7 @@ int process_incoming_connections(int server_socket)
 				}
 				else
 				{
-					if (read_incoming_data(handle, efd) < 0)
+					if (read_incoming_data(handle) < 0)
 					{
 						fprintf(stderr, "Receive from socket %d failed: %m\n",
 								handle);
@@ -277,7 +290,7 @@ int process_incoming_connections(int server_socket)
 						ev.data.u64 = 0LL;
 						ev.data.fd = handle;
 
-						if (epoll_ctl(efd, EPOLL_CTL_MOD, handle, &ev) < 0)
+						if (epoll_ctl(g_epoll_fd, EPOLL_CTL_MOD, handle, &ev) < 0)
 						{
 							printf(
 									"Couldn't modify client socket %d in epoll set: %m\n",
