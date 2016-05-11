@@ -16,6 +16,7 @@ struct SocketContext
 };
 
 int init_context_storage();
+int destroy_context_storage();
 
 int add_input(struct SocketContext* pSc);
 int add_output(struct SocketContext* pSc);

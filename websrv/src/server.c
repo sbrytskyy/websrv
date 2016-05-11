@@ -1,3 +1,10 @@
+/*
+ * server.c
+ *
+ *  Created on: May 5, 2016
+ *      Author: sbrytskyy
+ */
+
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
@@ -10,13 +17,11 @@
 #include <fcntl.h>
 
 #include "storage.h"
-#include "worker.h"
-
 #include "server.h"
 
 #define EPOLL_ARRAY_SIZE   64
 
-int g_epoll_fd;
+int epoll_fd;
 
 int read_incoming_data(int client_socket)
 {
@@ -56,7 +61,7 @@ int set_socket_write_mode(int client_socket)
 	ev.data.u64 = 0LL;
 	ev.data.fd = client_socket;
 
-	int result = epoll_ctl(g_epoll_fd, EPOLL_CTL_MOD, client_socket, &ev);
+	int result = epoll_ctl(epoll_fd, EPOLL_CTL_MOD, client_socket, &ev);
 
 	if (result < 0)
 	{
@@ -161,9 +166,9 @@ int process_incoming_connections(int server_socket)
 	struct epoll_event ev;
 	struct epoll_event epoll_events[EPOLL_ARRAY_SIZE];
 
-	g_epoll_fd = epoll_create(pollsize);
+	epoll_fd = epoll_create(pollsize);
 
-	if (g_epoll_fd < 0)
+	if (epoll_fd < 0)
 	{
 		perror("Could not create the epoll of file descriptors: %m");
 		close_handle(server_socket);
@@ -174,7 +179,7 @@ int process_incoming_connections(int server_socket)
 	ev.data.u64 = 0LL;
 	ev.data.fd = server_socket;
 
-	if (epoll_ctl(g_epoll_fd, EPOLL_CTL_ADD, server_socket, &ev) < 0)
+	if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, server_socket, &ev) < 0)
 	{
 		fprintf(stderr, "Couldn't add server socket %d to epoll set: %m\n",
 				server_socket);
@@ -182,14 +187,11 @@ int process_incoming_connections(int server_socket)
 		return -1;
 	}
 
-	init_context_storage();
-	start_worker(NULL);
-
 	while (1)
 	{
 		printf("Starting epoll_wait on %d file descriptors\n", pollsize);
 
-		while ((result = epoll_wait(g_epoll_fd, epoll_events, EPOLL_ARRAY_SIZE,
+		while ((result = epoll_wait(epoll_fd, epoll_events, EPOLL_ARRAY_SIZE,
 				-1)) < 0)
 		{
 			if ((result < 0) && (errno != EINTR))
@@ -263,7 +265,7 @@ int process_incoming_connections(int server_socket)
 					ev.data.u64 = 0LL;
 					ev.data.fd = client_socket;
 
-					if (epoll_ctl(g_epoll_fd, EPOLL_CTL_ADD, client_socket, &ev)
+					if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, client_socket, &ev)
 							< 0)
 					{
 						fprintf(
@@ -305,7 +307,7 @@ int process_incoming_connections(int server_socket)
 						ev.data.u64 = 0LL;
 						ev.data.fd = handle;
 
-						if (epoll_ctl(g_epoll_fd, EPOLL_CTL_MOD, handle, &ev)
+						if (epoll_ctl(epoll_fd, EPOLL_CTL_MOD, handle, &ev)
 								< 0)
 						{
 							printf(

@@ -17,18 +17,28 @@
 
 static void * worker_thread(void *);
 
-void start_worker(void * arg)
+int thread_state = 0; // 0: normal, -1: stop thread, 1: do something
+
+void start_worker()
 {
 	pthread_t worker;
-	int err = pthread_create(&worker, NULL, worker_thread, arg);
+	int err = pthread_create(&worker, NULL, worker_thread,
+			(void*) &thread_state);
 	if (err != 0)
 	{
 		fprintf(stderr, "can't create thread :[%s]\n", strerror(err));
 	}
 }
 
+void stop_worker()
+{
+	thread_state = 1;
+}
+
 static void * worker_thread(void * p)
 {
+	int* pthread_state = p;
+
 	while (1)
 	{
 		struct SocketContext* pSc = get_first_input();
@@ -47,13 +57,13 @@ static void * worker_thread(void * p)
 			add_output(pSc);
 			set_socket_write_mode(pSc->client_socket);
 		}
-		else
+
+		if (*pthread_state == -1)
 		{
-			// todo Refactor using synchronization
-			usleep(100000);
+			break;
 		}
 	}
 
-	pthread_detach(pthread_self());
+	pthread_exit(NULL);
 	return (NULL);
 }

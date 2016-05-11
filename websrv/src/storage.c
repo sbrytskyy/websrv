@@ -9,6 +9,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <pthread.h>
 
 struct Storage
 {
@@ -31,6 +32,8 @@ int add(struct Storage* pStorage, struct SocketContext* pSc);
 int delete(struct Storage* pStorage, struct SocketContext* pSc);
 struct ListItem* find(struct Storage* pStorage, int sock);
 
+pthread_mutex_t inqueue_mutex;
+pthread_cond_t empty_inqueue_cv;
 
 int init_context_storage()
 {
@@ -46,12 +49,49 @@ int init_context_storage()
 		return -1;
 	}
 
+	pthread_mutex_init(&inqueue_mutex, NULL);
+	pthread_cond_init(&empty_inqueue_cv, NULL);
+
+	return 0;
+}
+
+int destroy_context_storage()
+{
+	struct ListItem* pItem = pInQueue->pFirst;
+	while (pItem)
+	{
+		struct ListItem* pItem2Delete = pItem;
+		free (pItem2Delete);
+		pItem = pItem->pNext;
+	}
+	free(pInQueue);
+
+	pItem = pOutList->pFirst;
+	while (pItem)
+	{
+		struct ListItem* pItem2Delete = pItem;
+		free (pItem2Delete);
+		pItem = pItem->pNext;
+	}
+	free(pInQueue);
+
+	pthread_mutex_destroy(&inqueue_mutex);
+	pthread_cond_destroy(&empty_inqueue_cv);
+
 	return 0;
 }
 
 int add_input(struct SocketContext* pSc)
 {
-	return add(pInQueue, pSc);
+	pthread_mutex_lock(&inqueue_mutex);
+
+	int result = add(pInQueue, pSc);
+
+	pthread_cond_signal (&empty_inqueue_cv);
+
+	pthread_mutex_unlock(&inqueue_mutex);
+
+	return result;
 }
 
 int add_output(struct SocketContext* pSc)
@@ -61,26 +101,38 @@ int add_output(struct SocketContext* pSc)
 
 struct SocketContext* get_first_input()
 {
+	struct SocketContext* pSc = NULL;
+
+	pthread_mutex_lock(&inqueue_mutex);
+
+	while (pInQueue->pFirst == NULL)
+	{
+		pthread_cond_wait(&empty_inqueue_cv, &inqueue_mutex);
+	}
+
 	struct ListItem* pItem = pInQueue->pFirst;
 	if (pItem != NULL)
 	{
 		delete(pInQueue, pItem->pSc);
-		return pItem->pSc;
+		pSc = pItem->pSc;
 	}
+	pthread_mutex_unlock(&inqueue_mutex);
 
-	return NULL;
+	return pSc;
 }
 
 struct SocketContext* get_output(int sock)
 {
+	struct SocketContext* pSc = NULL;
+
 	struct ListItem* pItem = find(pOutList, sock);
 	if (pItem != NULL)
 	{
 		delete(pOutList, pItem->pSc);
-		return pItem->pSc;
+		pSc = pItem->pSc;
 	}
 
-	return NULL;
+	return pSc;
 }
 
 /******************************************************************/
@@ -114,7 +166,6 @@ int add(struct Storage* pStorage, struct SocketContext* pSc)
 
 		return 0;
 	}
-
 	printf("[error] Socket Context already exists for output.");
 
 	return -1;

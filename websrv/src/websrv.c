@@ -10,8 +10,11 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <pthread.h>
 
 #include "server.h"
+#include "storage.h"
+#include "worker.h"
 
 #define DEFAULT_SERVER_PORT 8080
 
@@ -25,7 +28,14 @@ int runServer()
 
 	puts("Server socket initialized successfully.");
 
+	init_context_storage();
+	start_worker();
+
 	process_incoming_connections(server_socket);
+
+	stop_worker();
+	destroy_context_storage();
+	pthread_exit(NULL);
 
 	return (EXIT_SUCCESS);
 }
