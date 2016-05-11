@@ -13,6 +13,7 @@ struct SocketContext
 	int client_socket;
 	char* pRequest;
 	char* pResponse;
+	int close_after_response;
 };
 
 int init_context_storage();

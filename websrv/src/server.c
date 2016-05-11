@@ -46,6 +46,7 @@ int read_incoming_data(int client_socket)
 		pSc->client_socket = client_socket;
 		pSc->pRequest = malloc(nbytes);
 		strcpy(pSc->pRequest, buffer);
+		pSc->close_after_response = 0;
 
 		add_input(pSc);
 
@@ -82,6 +83,12 @@ int write_response(int client_socket)
 	printf("[write_response] [%s]\n", response);
 
 	int result = send(client_socket, response, strlen(response), 0);
+	printf("Sent %d bytes as response.\n", result);
+
+	if (result > 0 && pSc->close_after_response == 1)
+	{
+		result = -1;
+	}
 
 	free(pSc->pResponse);
 	free(pSc->pRequest);
@@ -294,9 +301,7 @@ int process_incoming_connections(int server_socket)
 			{
 				if (handle != server_socket)
 				{
-					int nsent = write_response(handle);
-					printf("Sent %d bytes as response.\n", nsent);
-					if (nsent <= 0)
+					if (write_response(handle) <= 0)
 					{
 						close_handle(handle);
 						continue;
