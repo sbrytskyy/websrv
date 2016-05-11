@@ -8,6 +8,7 @@
 #include "storage.h"
 
 #include <stdio.h>
+#include <string.h>
 #include <stdlib.h>
 #include <pthread.h>
 
@@ -61,7 +62,7 @@ int destroy_context_storage()
 	while (pItem)
 	{
 		struct ListItem* pItem2Delete = pItem;
-		free (pItem2Delete);
+		free(pItem2Delete);
 		pItem = pItem->pNext;
 	}
 	free(pInQueue);
@@ -70,7 +71,7 @@ int destroy_context_storage()
 	while (pItem)
 	{
 		struct ListItem* pItem2Delete = pItem;
-		free (pItem2Delete);
+		free(pItem2Delete);
 		pItem = pItem->pNext;
 	}
 	free(pInQueue);
@@ -81,13 +82,35 @@ int destroy_context_storage()
 	return 0;
 }
 
+struct SocketContext* create_socket_context(int client_socket, char* buffer)
+{
+	struct SocketContext* pSc = malloc(sizeof(struct SocketContext));
+	pSc->client_socket = client_socket;
+	pSc->pRequest = malloc(strlen(buffer));
+	strcpy(pSc->pRequest, buffer);
+	pSc->pResponse = NULL;
+	pSc->close_after_response = 0;
+
+	return pSc;
+}
+
+void destroy_socket_context(struct SocketContext* pSc)
+{
+	if (pSc->pResponse)
+	{
+		free(pSc->pResponse);
+	}
+	free(pSc->pRequest);
+	free(pSc);
+}
+
 int add_input(struct SocketContext* pSc)
 {
 	pthread_mutex_lock(&inqueue_mutex);
 
 	int result = add(pInQueue, pSc);
 
-	pthread_cond_signal (&empty_inqueue_cv);
+	pthread_cond_signal(&empty_inqueue_cv);
 
 	pthread_mutex_unlock(&inqueue_mutex);
 

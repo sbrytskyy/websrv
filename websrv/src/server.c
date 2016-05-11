@@ -42,11 +42,7 @@ int read_incoming_data(int client_socket)
 		buffer[nbytes] = '\0';
 		printf("Received message [%s], length: %d\n", buffer, nbytes);
 
-		struct SocketContext* pSc = malloc(sizeof(struct SocketContext));
-		pSc->client_socket = client_socket;
-		pSc->pRequest = malloc(nbytes);
-		strcpy(pSc->pRequest, buffer);
-		pSc->close_after_response = 0;
+		struct SocketContext* pSc = create_socket_context(client_socket, buffer);
 
 		add_input(pSc);
 
@@ -79,21 +75,22 @@ int write_response(int client_socket)
 
 	struct SocketContext* pSc = get_output(client_socket);
 
-	char* response = pSc->pResponse;
-	printf("[write_response] [%s]\n", response);
-
-	int result = send(client_socket, response, strlen(response), 0);
-	printf("Sent %d bytes as response.\n", result);
-
-	if (result > 0 && pSc->close_after_response == 1)
+	int result = -1;
+	if (pSc->pResponse != NULL)
 	{
-		result = -1;
+		char* response = pSc->pResponse;
+		printf("[write_response] [%s]\n", response);
+
+		int result = send(client_socket, response, strlen(response), 0);
+		printf("Sent %d bytes as response.\n", result);
+
+		if (result > 0 && pSc->close_after_response == 1)
+		{
+			result = -1;
+		}
 	}
 
-	free(pSc->pResponse);
-	free(pSc->pRequest);
-	free(pSc);
-
+	destroy_socket_context(pSc);
 	return result;
 }
 

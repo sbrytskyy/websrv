@@ -19,6 +19,9 @@ struct SocketContext
 int init_context_storage();
 int destroy_context_storage();
 
+struct SocketContext* create_socket_context(int client_socket, char* buffer);
+void destroy_socket_context(struct SocketContext* pSc);
+
 int add_input(struct SocketContext* pSc);
 int add_output(struct SocketContext* pSc);
 struct SocketContext* get_first_input();

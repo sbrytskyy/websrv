@@ -14,6 +14,7 @@
 
 #include "storage.h"
 #include "server.h"
+#include "protocol.h"
 
 static void * worker_thread(void *);
 
@@ -48,15 +49,7 @@ static void * worker_thread(void * p)
 			printf("Socket=%d; Request [%s]\n", pSc->client_socket,
 					pSc->pRequest);
 
-			if (strstr(pSc->pRequest, "quit") > 0)
-			{
-				pSc->close_after_response = 1;
-			}
-			//char* response = "HTTP/1.1 200 OK\n<html>\n<body>\n<h1>Hello, World!</h1>\n</body>\n</html>";
-			char* response = "Response\n";
-
-			pSc->pResponse = malloc(strlen(response) + sizeof(char));
-			strcpy(pSc->pResponse, response);
+			process_http(pSc);
 
 			add_output(pSc);
 			set_socket_write_mode(pSc->client_socket);
