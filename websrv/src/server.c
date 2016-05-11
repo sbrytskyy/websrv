@@ -1,4 +1,20 @@
+#include <sys/socket.h>
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <sys/epoll.h>
+#include <errno.h>
+#include <unistd.h>
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <fcntl.h>
+
+#include "storage.h"
+#include "worker.h"
+
 #include "server.h"
+
+#define EPOLL_ARRAY_SIZE   64
 
 int g_epoll_fd;
 
@@ -26,10 +42,7 @@ int read_incoming_data(int client_socket)
 		pSc->pRequest = malloc(nbytes);
 		strcpy(pSc->pRequest, buffer);
 
-		store_socket_context(pSc);
-
-		// todo refactor worker
-		start_worker(pSc);
+		add_input(pSc);
 
 		return 0;
 	}
@@ -56,18 +69,18 @@ int set_socket_write_mode(int client_socket)
 
 int write_response(int client_socket)
 {
-	//char* response = "HTTP/1.1 200 OK\n<html>\n<body>\n<h1>Hello, World!</h1>\n</body>\n</html>";
-
 	printf("[write_response] socket=%d\n", client_socket);
 
-	struct SocketContext* pSc = get_socket_context(client_socket);
+	struct SocketContext* pSc = get_output(client_socket);
 
 	char* response = pSc->pResponse;
 	printf("[write_response] [%s]\n", response);
 
 	int result = send(client_socket, response, strlen(response), 0);
 
-	remove_socket_context(pSc);
+	free(pSc->pResponse);
+	free(pSc->pRequest);
+	free(pSc);
 
 	return result;
 }
@@ -148,8 +161,6 @@ int process_incoming_connections(int server_socket)
 	struct epoll_event ev;
 	struct epoll_event epoll_events[EPOLL_ARRAY_SIZE];
 
-	init_context_storage();
-
 	g_epoll_fd = epoll_create(pollsize);
 
 	if (g_epoll_fd < 0)
@@ -171,12 +182,15 @@ int process_incoming_connections(int server_socket)
 		return -1;
 	}
 
+	init_context_storage();
+	start_worker(NULL);
+
 	while (1)
 	{
 		printf("Starting epoll_wait on %d file descriptors\n", pollsize);
 
-		while ((result = epoll_wait(g_epoll_fd, epoll_events, EPOLL_ARRAY_SIZE, -1))
-				< 0)
+		while ((result = epoll_wait(g_epoll_fd, epoll_events, EPOLL_ARRAY_SIZE,
+				-1)) < 0)
 		{
 			if ((result < 0) && (errno != EINTR))
 			{
@@ -249,7 +263,8 @@ int process_incoming_connections(int server_socket)
 					ev.data.u64 = 0LL;
 					ev.data.fd = client_socket;
 
-					if (epoll_ctl(g_epoll_fd, EPOLL_CTL_ADD, client_socket, &ev) < 0)
+					if (epoll_ctl(g_epoll_fd, EPOLL_CTL_ADD, client_socket, &ev)
+							< 0)
 					{
 						fprintf(
 						stderr,
@@ -290,7 +305,8 @@ int process_incoming_connections(int server_socket)
 						ev.data.u64 = 0LL;
 						ev.data.fd = handle;
 
-						if (epoll_ctl(g_epoll_fd, EPOLL_CTL_MOD, handle, &ev) < 0)
+						if (epoll_ctl(g_epoll_fd, EPOLL_CTL_MOD, handle, &ev)
+								< 0)
 						{
 							printf(
 									"Couldn't modify client socket %d in epoll set: %m\n",
@@ -302,6 +318,8 @@ int process_incoming_connections(int server_socket)
 			}
 		}
 	}
+
+	close_handle(server_socket);
 
 	return 0;
 }
