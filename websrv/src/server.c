@@ -300,6 +300,7 @@ int process_incoming_connections(int server_socket)
 				{
 					if (write_response(handle) <= 0)
 					{
+						pollsize--;
 						close_handle(handle);
 						continue;
 					}

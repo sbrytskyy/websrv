@@ -43,6 +43,6 @@ int runServer()
 
 int main(void)
 {
-	return test_storage();
-//	return runServer();
+//	return test_storage();
+	return runServer();
 }
