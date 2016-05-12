@@ -36,6 +36,9 @@ struct ListItem* find(struct Storage* pStorage, int sock);
 pthread_mutex_t inqueue_mutex;
 pthread_cond_t empty_inqueue_cv;
 
+pthread_mutex_t outqueue_mutex;
+pthread_cond_t empty_outqueue_cv;
+
 int init_context_storage()
 {
 	pInQueue = malloc(sizeof(struct Storage));
@@ -52,6 +55,9 @@ int init_context_storage()
 
 	pthread_mutex_init(&inqueue_mutex, NULL);
 	pthread_cond_init(&empty_inqueue_cv, NULL);
+
+	pthread_mutex_init(&outqueue_mutex, NULL);
+	pthread_cond_init(&empty_outqueue_cv, NULL);
 
 	return 0;
 }
@@ -80,6 +86,9 @@ int destroy_context_storage()
 
 	pthread_mutex_destroy(&inqueue_mutex);
 	pthread_cond_destroy(&empty_inqueue_cv);
+
+	pthread_mutex_destroy(&outqueue_mutex);
+	pthread_cond_destroy(&empty_outqueue_cv);
 
 	return 0;
 }
@@ -111,8 +120,10 @@ int add_input(struct SocketContext* pSc)
 	pthread_mutex_lock(&inqueue_mutex);
 
 	int result = add(pInQueue, pSc);
-
-	pthread_cond_signal(&empty_inqueue_cv);
+	if (result != -1)
+	{
+		pthread_cond_signal(&empty_inqueue_cv);
+	}
 
 	pthread_mutex_unlock(&inqueue_mutex);
 
@@ -121,7 +132,17 @@ int add_input(struct SocketContext* pSc)
 
 int add_output(struct SocketContext* pSc)
 {
-	return add(pOutList, pSc);
+	pthread_mutex_lock(&outqueue_mutex);
+
+	int result = add(pOutList, pSc);
+	if (result != -1)
+	{
+		pthread_cond_signal(&empty_outqueue_cv);
+	}
+
+	pthread_mutex_unlock(&outqueue_mutex);
+
+	return result;
 }
 
 struct SocketContext* poll_first_input()
@@ -163,16 +184,45 @@ struct SocketContext* get_first_input()
 	return pSc;
 }
 
-struct SocketContext* get_output(int sock)
+struct SocketContext* poll_output(int client_socket)
 {
 	struct SocketContext* pSc = NULL;
 
-	struct ListItem* pItem = find(pOutList, sock);
+	pthread_mutex_lock(&outqueue_mutex);
+
+	struct ListItem* pItem;
+	do
+	{
+		pItem = find(pOutList, client_socket);
+		if (pItem != NULL)
+		{
+			delete(pOutList, pItem->pSc);
+			pSc = pItem->pSc;
+			break;
+		}
+
+		pthread_cond_wait(&empty_outqueue_cv, &outqueue_mutex);
+	} while (pItem == NULL);
+
+	pthread_mutex_unlock(&outqueue_mutex);
+
+	return pSc;
+}
+
+struct SocketContext* get_output(int client_socket)
+{
+	struct SocketContext* pSc = NULL;
+
+	pthread_mutex_lock(&outqueue_mutex);
+
+	struct ListItem* pItem = find(pOutList, client_socket);
 	if (pItem != NULL)
 	{
 		delete(pOutList, pItem->pSc);
 		pSc = pItem->pSc;
 	}
+
+	pthread_mutex_unlock(&outqueue_mutex);
 
 	return pSc;
 }
@@ -208,7 +258,7 @@ int add(struct Storage* pStorage, struct SocketContext* pSc)
 
 		return 0;
 	}
-	printf("[error] Socket Context already exists for output.");
+	fprintf(stderr, "[error] Socket Context already exists for output.");
 
 	return -1;
 }

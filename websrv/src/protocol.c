@@ -7,6 +7,7 @@
 
 #include <string.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 #include "protocol.h"
 
@@ -22,6 +23,10 @@ int process_http(struct SocketContext* pSc)
 
 		pSc->pResponse = malloc(strlen(response) + sizeof(char));
 		strcpy(pSc->pResponse, response);
+	}
+	else
+	{
+		fprintf(stderr, "Unknown protocol!\n");
 	}
 
 	return 0;

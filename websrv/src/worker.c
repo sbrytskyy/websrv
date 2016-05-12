@@ -46,8 +46,8 @@ static void * worker_thread(void * p)
 
 		if (pSc != NULL)
 		{
-			printf("Socket=%d; Request [%s]\n", pSc->client_socket,
-					pSc->pRequest);
+//			printf("Socket=%d; Request [%s]\n", pSc->client_socket,
+//					pSc->pRequest);
 
 			process_http(pSc);
 

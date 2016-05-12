@@ -40,11 +40,15 @@ int read_incoming_data(int client_socket)
 	else
 	{
 		buffer[nbytes] = '\0';
-		printf("Received message [%s], length: %d\n", buffer, nbytes);
+		//printf("Received message [%s], length: %d\n", buffer, nbytes);
 
 		struct SocketContext* pSc = create_socket_context(client_socket, buffer);
 
-		add_input(pSc);
+		int result = add_input(pSc);
+		if (result == -1)
+		{
+			fprintf(stderr, "Error adding input data to storage. Socket=%d\n", client_socket);
+		}
 
 		return 0;
 	}
@@ -71,23 +75,27 @@ int set_socket_write_mode(int client_socket)
 
 int write_response(int client_socket)
 {
-	printf("[write_response] socket=%d\n", client_socket);
+	//printf("[write_response] socket=%d\n", client_socket);
 
 	struct SocketContext* pSc = get_output(client_socket);
 
 	int result = -1;
-	if (pSc->pResponse != NULL)
+	if (pSc != NULL && pSc->pResponse != NULL)
 	{
 		char* response = pSc->pResponse;
-		printf("[write_response] [%s]\n", response);
+		//printf("[write_response] [%s]\n", response);
 
 		int result = send(client_socket, response, strlen(response), 0);
-		printf("Sent %d bytes as response.\n", result);
+		//printf("Sent %d bytes as response.\n", result);
 
 		if (result > 0 && pSc->close_after_response == 1)
 		{
 			result = -1;
 		}
+	}
+	else
+	{
+		fprintf(stderr, "Response is not ready for socket %d\n", client_socket);
 	}
 
 	destroy_socket_context(pSc);
@@ -193,7 +201,7 @@ int process_incoming_connections(int server_socket)
 
 	while (1)
 	{
-		printf("Starting epoll_wait on %d file descriptors\n", pollsize);
+		//printf("Starting epoll_wait on %d file descriptors\n", pollsize);
 
 		while ((result = epoll_wait(epoll_fd, epoll_events, EPOLL_ARRAY_SIZE,
 				-1)) < 0)
@@ -224,7 +232,7 @@ int process_incoming_connections(int server_socket)
 				}
 				else
 				{
-					printf("Closing socket with handle %d\n", handle);
+					//printf("Closing socket with handle %d\n", handle);
 					close_handle(handle);
 					continue;
 				}
@@ -254,10 +262,10 @@ int process_incoming_connections(int server_socket)
 					if (inet_ntop(AF_INET, &clientaddr.sin_addr.s_addr, buffer,
 							sizeof(buffer)) != NULL)
 					{
-						printf(
-								"[Web Server] Accepted connection from %s:%u, assigned new sd %d\n",
-								buffer, ntohs(clientaddr.sin_port),
-								client_socket);
+//						printf(
+//								"[Web Server] Accepted connection from %s:%u, assigned new sd %d\n",
+//								buffer, ntohs(clientaddr.sin_port),
+//								client_socket);
 					}
 					else
 					{
