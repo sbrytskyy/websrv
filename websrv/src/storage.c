@@ -62,6 +62,7 @@ int destroy_context_storage()
 	while (pItem)
 	{
 		struct ListItem* pItem2Delete = pItem;
+		destroy_context_storage(pItem2Delete->pSc);
 		free(pItem2Delete);
 		pItem = pItem->pNext;
 	}
@@ -71,10 +72,11 @@ int destroy_context_storage()
 	while (pItem)
 	{
 		struct ListItem* pItem2Delete = pItem;
+		destroy_context_storage(pItem2Delete->pSc);
 		free(pItem2Delete);
 		pItem = pItem->pNext;
 	}
-	free(pInQueue);
+	free(pOutList);
 
 	pthread_mutex_destroy(&inqueue_mutex);
 	pthread_cond_destroy(&empty_inqueue_cv);
@@ -122,7 +124,7 @@ int add_output(struct SocketContext* pSc)
 	return add(pOutList, pSc);
 }
 
-struct SocketContext* get_first_input()
+struct SocketContext* poll_first_input()
 {
 	struct SocketContext* pSc = NULL;
 
@@ -132,6 +134,23 @@ struct SocketContext* get_first_input()
 	{
 		pthread_cond_wait(&empty_inqueue_cv, &inqueue_mutex);
 	}
+
+	struct ListItem* pItem = pInQueue->pFirst;
+	if (pItem != NULL)
+	{
+		delete(pInQueue, pItem->pSc);
+		pSc = pItem->pSc;
+	}
+	pthread_mutex_unlock(&inqueue_mutex);
+
+	return pSc;
+}
+
+struct SocketContext* get_first_input()
+{
+	struct SocketContext* pSc = NULL;
+
+	pthread_mutex_lock(&inqueue_mutex);
 
 	struct ListItem* pItem = pInQueue->pFirst;
 	if (pItem != NULL)

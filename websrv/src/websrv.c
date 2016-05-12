@@ -15,6 +15,7 @@
 #include "server.h"
 #include "storage.h"
 #include "worker.h"
+#include "test.h"
 
 #define DEFAULT_SERVER_PORT 8080
 
@@ -42,5 +43,6 @@ int runServer()
 
 int main(void)
 {
-	return runServer();
+	return test_storage();
+//	return runServer();
 }

@@ -24,6 +24,7 @@ void destroy_socket_context(struct SocketContext* pSc);
 
 int add_input(struct SocketContext* pSc);
 int add_output(struct SocketContext* pSc);
+struct SocketContext* poll_first_input();
 struct SocketContext* get_first_input();
 struct SocketContext* get_output(int sock);
 
