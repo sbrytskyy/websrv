@@ -23,11 +23,11 @@ int thread_state = 0; // 0: normal, -1: stop thread, 1: do something
 void start_worker()
 {
 	pthread_t worker;
-	int err = pthread_create(&worker, NULL, worker_thread,
+	int rc = pthread_create(&worker, NULL, worker_thread,
 			(void*) &thread_state);
-	if (err != 0)
+	if (rc)
 	{
-		fprintf(stderr, "can't create thread :[%s]\n", strerror(err));
+		fprintf(stderr, "ERROR; return code from pthread_create() is %d\n", rc);
 	}
 }
 
@@ -38,7 +38,7 @@ void stop_worker()
 
 static void * worker_thread(void * p)
 {
-	int* pthread_state = p;
+	volatile int* pthread_state = p;
 
 	while (1)
 	{
@@ -62,5 +62,4 @@ static void * worker_thread(void * p)
 	}
 
 	pthread_exit(NULL);
-	return (NULL);
 }

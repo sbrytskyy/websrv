@@ -25,9 +25,10 @@ int epoll_fd;
 
 int read_incoming_data(int client_socket)
 {
+	// todo rework buffer handling
 	char buffer[MAX_PACKET_SIZE];
 
-	int nbytes = read(client_socket, buffer, 512);
+	int nbytes = read(client_socket, buffer, sizeof(buffer));
 	if (nbytes < 0)
 	{
 		perror("Error reading socket: %m");
@@ -35,6 +36,7 @@ int read_incoming_data(int client_socket)
 	}
 	else if (nbytes == 0)
 	{
+		perror("Nothing has been read from socket: %m");
 		return -1;
 	}
 	else
@@ -42,12 +44,22 @@ int read_incoming_data(int client_socket)
 		buffer[nbytes] = '\0';
 		//printf("Received message [%s], length: %d\n", buffer, nbytes);
 
-		struct SocketContext* pSc = create_socket_context(client_socket, buffer);
+		struct SocketContext* pSc = create_socket_context(client_socket,
+				buffer);
+
+		if (pSc == NULL)
+		{
+			fprintf(stderr, "Error creating socket context. Socket=%d\n",
+					client_socket);
+			return -1;
+		}
 
 		int result = add_input(pSc);
 		if (result == -1)
 		{
-			fprintf(stderr, "Error adding input data to storage. Socket=%d\n", client_socket);
+			fprintf(stderr, "Error adding input data to storage. Socket=%d\n",
+					client_socket);
+			return -1;
 		}
 
 		return 0;
@@ -147,11 +159,8 @@ int init_server_socket(uint16_t port)
 		perror("Error binding socket: %m");
 		return -1;
 	}
-	else
-	{
-		printf("Bound socket %d to address 'INADDR_ANY' and port %u\n", handle,
-				port);
-	}
+	printf("Bound socket %d to address 'INADDR_ANY' and port %u\n", handle,
+			port);
 
 	if (listen(handle, SOMAXCONN))
 	{
@@ -160,12 +169,9 @@ int init_server_socket(uint16_t port)
 		close_handle(handle);
 		return -1;
 	}
-	else
-	{
-		printf(
-				"Server socket %d started listening to address 'INADDR_ANY' and port %u\n",
-				handle, port);
-	}
+	printf(
+			"Server socket %d started listening to address 'INADDR_ANY' and port %u\n",
+			handle, port);
 
 	return handle;
 }
@@ -178,9 +184,7 @@ int process_incoming_connections(int server_socket)
 	struct epoll_event ev;
 	struct epoll_event epoll_events[EPOLL_ARRAY_SIZE];
 
-	epoll_fd = epoll_create(pollsize);
-
-	if (epoll_fd < 0)
+	if ((epoll_fd = epoll_create(pollsize)) < 0)
 	{
 		perror("Could not create the epoll of file descriptors: %m");
 		close_handle(server_socket);
@@ -318,8 +322,7 @@ int process_incoming_connections(int server_socket)
 						ev.data.u64 = 0LL;
 						ev.data.fd = handle;
 
-						if (epoll_ctl(epoll_fd, EPOLL_CTL_MOD, handle, &ev)
-								< 0)
+						if (epoll_ctl(epoll_fd, EPOLL_CTL_MOD, handle, &ev) < 0)
 						{
 							printf(
 									"Couldn't modify client socket %d in epoll set: %m\n",

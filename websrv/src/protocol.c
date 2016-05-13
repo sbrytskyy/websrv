@@ -20,7 +20,12 @@ int process_http(struct SocketContext* pSc)
 		char* response =
 				"HTTP/1.1 200 OK\r\n\r\n<html>\r\n<body>\r\n<h1>Hello, World!</h1>\r\n</body>\r\n</html>";
 
-		pSc->pResponse = malloc(strlen(response) + sizeof(char));
+		pSc->pResponse = malloc(strlen(response) + 1);
+		if (pSc->pResponse == NULL)
+		{
+			fprintf(stderr, "Error creating response.\n");
+			return -1;
+		}
 		strcpy(pSc->pResponse, response);
 	}
 	else

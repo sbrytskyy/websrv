@@ -27,6 +27,7 @@ int runServer()
 		return EXIT_FAILURE;
 	}
 
+	// todo rework all logging using debug/release switch
 	puts("Server socket initialized successfully.");
 
 	init_context_storage();
@@ -36,9 +37,7 @@ int runServer()
 
 	stop_worker();
 	destroy_context_storage();
-	pthread_exit(NULL);
-
-	return (EXIT_SUCCESS);
+	pthread_exit(EXIT_SUCCESS);
 }
 
 int main(void)

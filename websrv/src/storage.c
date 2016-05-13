@@ -50,6 +50,7 @@ int init_context_storage()
 	pOutList = malloc(sizeof(struct Storage));
 	if (pOutList == NULL)
 	{
+		free(pInQueue);
 		return -1;
 	}
 
@@ -95,12 +96,22 @@ int destroy_context_storage()
 
 struct SocketContext* create_socket_context(int client_socket, char* buffer)
 {
+	// todo rework using pool of objects
+
 	struct SocketContext* pSc = malloc(sizeof(struct SocketContext));
-	pSc->client_socket = client_socket;
-	pSc->pRequest = malloc(strlen(buffer));
-	strcpy(pSc->pRequest, buffer);
-	pSc->pResponse = NULL;
-	pSc->close_after_response = 0;
+	if (pSc != NULL)
+	{
+		pSc->client_socket = client_socket;
+		pSc->pRequest = malloc(strlen(buffer));
+		if (pSc->pRequest == NULL)
+		{
+			free(pSc);
+			return NULL;
+		}
+		strcpy(pSc->pRequest, buffer);
+		pSc->pResponse = NULL;
+		pSc->close_after_response = 0;
+	}
 
 	return pSc;
 }
