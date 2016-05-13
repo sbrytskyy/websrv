@@ -30,8 +30,19 @@ int runServer()
 	// todo rework all logging using debug/release switch
 	puts("Server socket initialized successfully.");
 
-	init_context_storage();
-	start_worker();
+	int result = init_context_storage();
+	if (result == -1)
+	{
+		perror("Error creating contex storage.");
+		return -1;
+	}
+	result = start_worker();
+	if (result == -1)
+	{
+		perror("Error creating worker.");
+		return -1;
+	}
+
 
 	process_incoming_connections(server_socket);
 

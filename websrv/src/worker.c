@@ -20,7 +20,7 @@ static void * worker_thread(void *);
 
 int thread_state = 0; // 0: normal, -1: stop thread, 1: do something
 
-void start_worker()
+int start_worker()
 {
 	pthread_t worker;
 	int rc = pthread_create(&worker, NULL, worker_thread,
@@ -28,7 +28,10 @@ void start_worker()
 	if (rc)
 	{
 		fprintf(stderr, "ERROR; return code from pthread_create() is %d\n", rc);
+		return -1;
 	}
+
+	return 0;
 }
 
 void stop_worker()
