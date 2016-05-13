@@ -97,7 +97,7 @@ int write_response(int client_socket)
 		char* response = pSc->pResponse;
 		//printf("[write_response] [%s]\n", response);
 
-		int result = send(client_socket, response, strlen(response), 0);
+		result = send(client_socket, response, strlen(response), 0);
 		//printf("Sent %d bytes as response.\n", result);
 
 		if (result > 0 && pSc->close_after_response == 1)
@@ -178,7 +178,6 @@ int init_server_socket(uint16_t port)
 
 int process_incoming_connections(int server_socket)
 {
-	int result;
 	int pollsize = 1;
 
 	struct epoll_event ev;
@@ -205,6 +204,7 @@ int process_incoming_connections(int server_socket)
 
 	while (1)
 	{
+		int result;
 		//printf("Starting epoll_wait on %d file descriptors\n", pollsize);
 
 		while ((result = epoll_wait(epoll_fd, epoll_events, EPOLL_ARRAY_SIZE,
