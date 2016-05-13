@@ -18,7 +18,7 @@
 
 static void * worker_thread(void *);
 
-int thread_state = 0; // 0: normal, -1: stop thread, 1: do something
+volatile int thread_state = 0; // 0: normal, -1: stop thread, 1: do something
 
 int start_worker()
 {
@@ -41,7 +41,7 @@ void stop_worker()
 
 static void * worker_thread(void * p)
 {
-	volatile int* pthread_state = p;
+	int* pthread_state = p;
 
 	while (1)
 	{
