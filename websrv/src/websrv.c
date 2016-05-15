@@ -43,7 +43,6 @@ int runServer()
 		return -1;
 	}
 
-
 	process_incoming_connections(server_socket);
 
 	stop_worker();

@@ -23,20 +23,20 @@
 
 int epoll_fd;
 
+// todo rework buffer handling
+char buffer[MAX_PACKET_SIZE];
+
 int read_incoming_data(int client_socket)
 {
-	// todo rework buffer handling
-	char buffer[MAX_PACKET_SIZE];
-
 	int nbytes = read(client_socket, buffer, sizeof(buffer));
 	if (nbytes < 0)
 	{
-		perror("Error reading socket: %m");
+		fprintf(stderr, "Error reading socket %d: %m\n", client_socket);
 		return -1;
 	}
 	else if (nbytes == 0)
 	{
-		perror("Nothing has been read from socket: %m");
+		fprintf(stderr, "Nothing has been read from socket %d: %m\n", client_socket);
 		return -1;
 	}
 	else
@@ -44,7 +44,7 @@ int read_incoming_data(int client_socket)
 		buffer[nbytes] = '\0';
 		//printf("Received message [%s], length: %d\n", buffer, nbytes);
 
-		struct SocketContext* pSc = create_socket_context(client_socket,
+		struct socket_context* pSc = create_socket_context(client_socket,
 				buffer);
 
 		if (pSc == NULL)
@@ -89,7 +89,7 @@ int write_response(int client_socket)
 {
 	//printf("[write_response] socket=%d\n", client_socket);
 
-	struct SocketContext* pSc = get_output(client_socket);
+	struct socket_context* pSc = get_output(client_socket);
 
 	int result = -1;
 	if (pSc != NULL && pSc->pResponse != NULL)
@@ -129,13 +129,13 @@ int init_server_socket(uint16_t port)
 	handle = socket(PF_INET, SOCK_STREAM, 0);
 	if (handle < 0)
 	{
-		perror("Error creating socket: %m");
+		fprintf(stderr, "Error creating socket: %m\n");
 		return -1;
 	}
 
 	if (fcntl(handle, F_SETFL, O_NONBLOCK))
 	{
-		perror("Could not make the socket non-blocking: %m\n");
+		fprintf(stderr, "Could not make the socket non-blocking: %m\n");
 		close(handle);
 		return -1;
 	}
@@ -156,7 +156,7 @@ int init_server_socket(uint16_t port)
 
 	if (bind(handle, (struct sockaddr *) &serveraddr, sizeof(serveraddr)) < 0)
 	{
-		perror("Error binding socket: %m");
+		fprintf(stderr, "Error binding socket: %m\n");
 		return -1;
 	}
 	printf("Bound socket %d to address 'INADDR_ANY' and port %u\n", handle,
@@ -185,7 +185,7 @@ int process_incoming_connections(int server_socket)
 
 	if ((epoll_fd = epoll_create(pollsize)) < 0)
 	{
-		perror("Could not create the epoll of file descriptors: %m");
+		fprintf(stderr, "Could not create the epoll of file descriptors: %m\n");
 		close_handle(server_socket);
 		return 1;
 	}
@@ -273,7 +273,7 @@ int process_incoming_connections(int server_socket)
 					}
 					else
 					{
-						perror(
+						fprintf(stderr,
 								"Failed to convert address from binary to text form: %m\n");
 					}
 

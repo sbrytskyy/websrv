@@ -11,7 +11,7 @@
 
 #include "protocol.h"
 
-int process_http(struct SocketContext* pSc)
+int process_http(struct socket_context* pSc)
 {
 	pSc->close_after_response = 1;
 	char* index = strstr(pSc->pRequest, "GET");

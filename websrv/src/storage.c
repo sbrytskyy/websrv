@@ -12,26 +12,26 @@
 #include <stdlib.h>
 #include <pthread.h>
 
-struct Storage
+struct storage
 {
-	struct ListItem* pFirst;
-	struct ListItem* pLast;
+	struct list_item* pFirst;
+	struct list_item* pLast;
 };
 
-struct ListItem
+struct list_item
 {
-	struct ListItem* pPrev;
-	struct ListItem* pNext;
+	struct list_item* pPrev;
+	struct list_item* pNext;
 
-	struct SocketContext* pSc;
+	struct socket_context* pSc;
 };
 
-struct Storage* pInQueue;
-struct Storage* pOutList;
+struct storage* incoming_queue;
+struct storage* output_list;
 
-int add(struct Storage* pStorage, struct SocketContext* pSc);
-int delete(struct Storage* pStorage, struct SocketContext* pSc);
-struct ListItem* find(struct Storage* pStorage, int sock);
+int add(struct storage* pStorage, struct socket_context* pSc);
+int delete(struct storage* pStorage, struct socket_context* pSc);
+struct list_item* find(struct storage* pStorage, int sock);
 
 pthread_mutex_t inqueue_mutex;
 pthread_cond_t empty_inqueue_cv;
@@ -41,16 +41,16 @@ pthread_cond_t empty_outqueue_cv;
 
 int init_context_storage()
 {
-	pInQueue = malloc(sizeof(struct Storage));
-	if (pInQueue == NULL)
+	incoming_queue = malloc(sizeof(struct storage));
+	if (incoming_queue == NULL)
 	{
 		return -1;
 	}
 
-	pOutList = malloc(sizeof(struct Storage));
-	if (pOutList == NULL)
+	output_list = malloc(sizeof(struct storage));
+	if (output_list == NULL)
 	{
-		free(pInQueue);
+		free(incoming_queue);
 		return -1;
 	}
 
@@ -65,25 +65,25 @@ int init_context_storage()
 
 int destroy_context_storage()
 {
-	struct ListItem* pItem = pInQueue->pFirst;
+	struct list_item* pItem = incoming_queue->pFirst;
 	while (pItem)
 	{
-		struct ListItem* pItem2Delete = pItem;
+		struct list_item* pItem2Delete = pItem;
 		destroy_context_storage(pItem2Delete->pSc);
 		free(pItem2Delete);
 		pItem = pItem->pNext;
 	}
-	free(pInQueue);
+	free(incoming_queue);
 
-	pItem = pOutList->pFirst;
+	pItem = output_list->pFirst;
 	while (pItem)
 	{
-		struct ListItem* pItem2Delete = pItem;
+		struct list_item* pItem2Delete = pItem;
 		destroy_context_storage(pItem2Delete->pSc);
 		free(pItem2Delete);
 		pItem = pItem->pNext;
 	}
-	free(pOutList);
+	free(output_list);
 
 	pthread_mutex_destroy(&inqueue_mutex);
 	pthread_cond_destroy(&empty_inqueue_cv);
@@ -94,11 +94,11 @@ int destroy_context_storage()
 	return 0;
 }
 
-struct SocketContext* create_socket_context(int client_socket, char* buffer)
+struct socket_context* create_socket_context(int client_socket, char* buffer)
 {
 	// todo rework using pool of objects
 
-	struct SocketContext* pSc = malloc(sizeof(struct SocketContext));
+	struct socket_context* pSc = malloc(sizeof(struct socket_context));
 	if (pSc != NULL)
 	{
 		pSc->client_socket = client_socket;
@@ -116,7 +116,7 @@ struct SocketContext* create_socket_context(int client_socket, char* buffer)
 	return pSc;
 }
 
-void destroy_socket_context(struct SocketContext* pSc)
+void destroy_socket_context(struct socket_context* pSc)
 {
 	if (pSc->pResponse)
 	{
@@ -126,11 +126,11 @@ void destroy_socket_context(struct SocketContext* pSc)
 	free(pSc);
 }
 
-int add_input(struct SocketContext* pSc)
+int add_input(struct socket_context* pSc)
 {
 	pthread_mutex_lock(&inqueue_mutex);
 
-	int result = add(pInQueue, pSc);
+	int result = add(incoming_queue, pSc);
 	if (result != -1)
 	{
 		pthread_cond_signal(&empty_inqueue_cv);
@@ -141,11 +141,11 @@ int add_input(struct SocketContext* pSc)
 	return result;
 }
 
-int add_output(struct SocketContext* pSc)
+int add_output(struct socket_context* pSc)
 {
 	pthread_mutex_lock(&outqueue_mutex);
 
-	int result = add(pOutList, pSc);
+	int result = add(output_list, pSc);
 	if (result != -1)
 	{
 		pthread_cond_signal(&empty_outqueue_cv);
@@ -156,21 +156,21 @@ int add_output(struct SocketContext* pSc)
 	return result;
 }
 
-struct SocketContext* poll_first_input()
+struct socket_context* poll_first_input()
 {
-	struct SocketContext* pSc = NULL;
+	struct socket_context* pSc = NULL;
 
 	pthread_mutex_lock(&inqueue_mutex);
 
-	while (pInQueue->pFirst == NULL)
+	while (incoming_queue->pFirst == NULL)
 	{
 		pthread_cond_wait(&empty_inqueue_cv, &inqueue_mutex);
 	}
 
-	struct ListItem* pItem = pInQueue->pFirst;
+	struct list_item* pItem = incoming_queue->pFirst;
 	if (pItem != NULL)
 	{
-		delete(pInQueue, pItem->pSc);
+		delete(incoming_queue, pItem->pSc);
 		pSc = pItem->pSc;
 	}
 	pthread_mutex_unlock(&inqueue_mutex);
@@ -178,16 +178,16 @@ struct SocketContext* poll_first_input()
 	return pSc;
 }
 
-struct SocketContext* get_first_input()
+struct socket_context* get_first_input()
 {
-	struct SocketContext* pSc = NULL;
+	struct socket_context* pSc = NULL;
 
 	pthread_mutex_lock(&inqueue_mutex);
 
-	struct ListItem* pItem = pInQueue->pFirst;
+	struct list_item* pItem = incoming_queue->pFirst;
 	if (pItem != NULL)
 	{
-		delete(pInQueue, pItem->pSc);
+		delete(incoming_queue, pItem->pSc);
 		pSc = pItem->pSc;
 	}
 	pthread_mutex_unlock(&inqueue_mutex);
@@ -195,19 +195,19 @@ struct SocketContext* get_first_input()
 	return pSc;
 }
 
-struct SocketContext* poll_output(int client_socket)
+struct socket_context* poll_output(int client_socket)
 {
-	struct SocketContext* pSc = NULL;
+	struct socket_context* pSc = NULL;
 
 	pthread_mutex_lock(&outqueue_mutex);
 
-	struct ListItem* pItem;
+	struct list_item* pItem;
 	do
 	{
-		pItem = find(pOutList, client_socket);
+		pItem = find(output_list, client_socket);
 		if (pItem != NULL)
 		{
-			delete(pOutList, pItem->pSc);
+			delete(output_list, pItem->pSc);
 			pSc = pItem->pSc;
 			break;
 		}
@@ -220,16 +220,16 @@ struct SocketContext* poll_output(int client_socket)
 	return pSc;
 }
 
-struct SocketContext* get_output(int client_socket)
+struct socket_context* get_output(int client_socket)
 {
-	struct SocketContext* pSc = NULL;
+	struct socket_context* pSc = NULL;
 
 	pthread_mutex_lock(&outqueue_mutex);
 
-	struct ListItem* pItem = find(pOutList, client_socket);
+	struct list_item* pItem = find(output_list, client_socket);
 	if (pItem != NULL)
 	{
-		delete(pOutList, pItem->pSc);
+		delete(output_list, pItem->pSc);
 		pSc = pItem->pSc;
 	}
 
@@ -240,12 +240,12 @@ struct SocketContext* get_output(int client_socket)
 
 /******************************************************************/
 
-int add(struct Storage* pStorage, struct SocketContext* pSc)
+int add(struct storage* pStorage, struct socket_context* pSc)
 {
-	struct ListItem* pItem = find(pStorage, pSc->client_socket);
+	struct list_item* pItem = find(pStorage, pSc->client_socket);
 	if (pItem == NULL)
 	{
-		pItem = malloc(sizeof(struct ListItem));
+		pItem = malloc(sizeof(struct list_item));
 		if (pItem == NULL)
 		{
 			return -1;
@@ -274,9 +274,9 @@ int add(struct Storage* pStorage, struct SocketContext* pSc)
 	return -1;
 }
 
-int delete(struct Storage* pStorage, struct SocketContext* pSc)
+int delete(struct storage* pStorage, struct socket_context* pSc)
 {
-	struct ListItem* pItem = pStorage->pFirst;
+	struct list_item* pItem = pStorage->pFirst;
 
 	while (pItem)
 	{
@@ -310,9 +310,9 @@ int delete(struct Storage* pStorage, struct SocketContext* pSc)
 	return -1;
 }
 
-struct ListItem* find(struct Storage* pStorage, int sock)
+struct list_item* find(struct storage* pStorage, int sock)
 {
-	struct ListItem* pItem = pStorage->pFirst;
+	struct list_item* pItem = pStorage->pFirst;
 
 	while (pItem)
 	{

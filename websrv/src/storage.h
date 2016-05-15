@@ -8,7 +8,7 @@
 #ifndef STRUCTURES_H_
 #define STRUCTURES_H_
 
-struct SocketContext
+struct socket_context
 {
 	int client_socket;
 	char* pRequest;
@@ -19,14 +19,14 @@ struct SocketContext
 int init_context_storage();
 int destroy_context_storage();
 
-struct SocketContext* create_socket_context(int client_socket, char* buffer);
-void destroy_socket_context(struct SocketContext* pSc);
+struct socket_context* create_socket_context(int client_socket, char* buffer);
+void destroy_socket_context(struct socket_context* pSc);
 
-int add_input(struct SocketContext* pSc);
-int add_output(struct SocketContext* pSc);
-struct SocketContext* poll_first_input();
-struct SocketContext* get_first_input();
-struct SocketContext* get_output(int client_socket);
-struct SocketContext* poll_output(int client_socket);
+int add_input(struct socket_context* pSc);
+int add_output(struct socket_context* pSc);
+struct socket_context* poll_first_input();
+struct socket_context* get_first_input();
+struct socket_context* get_output(int client_socket);
+struct socket_context* poll_output(int client_socket);
 
 #endif /* STRUCTURES_H_ */

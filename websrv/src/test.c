@@ -17,13 +17,13 @@ int test_storage()
 	{
 		char str[16];
 		sprintf(str, "%d", i);
-		struct SocketContext* pSc = create_socket_context(i, str);
+		struct socket_context* pSc = create_socket_context(i, str);
 		printf("%s\n", str);
 
 		add_input(pSc);
 	}
 
-	struct SocketContext* pSc;
+	struct socket_context* pSc;
 
 	while ((pSc = get_first_input()) != NULL)
 	{

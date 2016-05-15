@@ -45,7 +45,7 @@ static void * worker_thread(void * p)
 
 	while (1)
 	{
-		struct SocketContext* pSc = poll_first_input();
+		struct socket_context* pSc = poll_first_input();
 
 		if (pSc != NULL)
 		{
