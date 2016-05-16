@@ -15,6 +15,7 @@
 #include "storage.h"
 #include "server.h"
 #include "protocol.h"
+#include "utils.h"
 
 static void * worker_thread(void *);
 
@@ -49,8 +50,8 @@ static void * worker_thread(void * p)
 
 		if (pSc != NULL)
 		{
-//			printf("Socket=%d; Request [%s]\n", pSc->client_socket,
-//					pSc->pRequest);
+			dprint("Socket=%d; Request [%s]\n", pSc->client_socket,
+					pSc->pRequest);
 
 			process_http(pSc);
 

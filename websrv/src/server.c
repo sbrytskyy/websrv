@@ -18,6 +18,7 @@
 
 #include "storage.h"
 #include "server.h"
+#include "utils.h"
 
 #define EPOLL_ARRAY_SIZE   64
 
@@ -36,13 +37,14 @@ int read_incoming_data(int client_socket)
 	}
 	else if (nbytes == 0)
 	{
-		fprintf(stderr, "Nothing has been read from socket %d: %m\n", client_socket);
+		fprintf(stderr, "Nothing has been read from socket %d: %m\n",
+				client_socket);
 		return -1;
 	}
 	else
 	{
 		buffer[nbytes] = '\0';
-		//printf("Received message [%s], length: %d\n", buffer, nbytes);
+		dprint("Received message [%s], length: %d\n", buffer, nbytes);
 
 		struct socket_context* pSc = create_socket_context(client_socket,
 				buffer);
@@ -87,7 +89,7 @@ int set_socket_write_mode(int client_socket)
 
 int write_response(int client_socket)
 {
-	//printf("[write_response] socket=%d\n", client_socket);
+	dprint("[write_response] socket=%d\n", client_socket);
 
 	struct socket_context* pSc = get_output(client_socket);
 
@@ -95,10 +97,10 @@ int write_response(int client_socket)
 	if (pSc != NULL && pSc->pResponse != NULL)
 	{
 		char* response = pSc->pResponse;
-		//printf("[write_response] [%s]\n", response);
+		dprint("[write_response] [%s]\n", response);
 
 		result = send(client_socket, response, strlen(response), 0);
-		//printf("Sent %d bytes as response.\n", result);
+		dprint("Sent %d bytes as response.\n", result);
 
 		if (result > 0 && pSc->close_after_response == 1)
 		{
@@ -159,7 +161,7 @@ int init_server_socket(uint16_t port)
 		fprintf(stderr, "Error binding socket: %m\n");
 		return -1;
 	}
-	printf("Bound socket %d to address 'INADDR_ANY' and port %u\n", handle,
+	dprint("Bound socket %d to address 'INADDR_ANY' and port %u\n", handle,
 			port);
 
 	if (listen(handle, SOMAXCONN))
@@ -169,7 +171,7 @@ int init_server_socket(uint16_t port)
 		close_handle(handle);
 		return -1;
 	}
-	printf(
+	dprint(
 			"Server socket %d started listening to address 'INADDR_ANY' and port %u\n",
 			handle, port);
 
@@ -205,7 +207,7 @@ int process_incoming_connections(int server_socket)
 	while (1)
 	{
 		int result;
-		//printf("Starting epoll_wait on %d file descriptors\n", pollsize);
+		dprint("Starting epoll_wait on %d file descriptors\n", pollsize);
 
 		while ((result = epoll_wait(epoll_fd, epoll_events, EPOLL_ARRAY_SIZE,
 				-1)) < 0)
@@ -236,7 +238,7 @@ int process_incoming_connections(int server_socket)
 				}
 				else
 				{
-					//printf("Closing socket with handle %d\n", handle);
+					dprint("Closing socket with handle %d\n", handle);
 					close_handle(handle);
 					continue;
 				}
@@ -266,10 +268,10 @@ int process_incoming_connections(int server_socket)
 					if (inet_ntop(AF_INET, &clientaddr.sin_addr.s_addr, buffer,
 							sizeof(buffer)) != NULL)
 					{
-//						printf(
-//								"[Web Server] Accepted connection from %s:%u, assigned new sd %d\n",
-//								buffer, ntohs(clientaddr.sin_port),
-//								client_socket);
+						dprint(
+								"[Web Server] Accepted connection from %s:%u, assigned new sd %d\n",
+								buffer, ntohs(clientaddr.sin_port),
+								client_socket);
 					}
 					else
 					{

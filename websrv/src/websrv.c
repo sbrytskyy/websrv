@@ -16,6 +16,7 @@
 #include "storage.h"
 #include "worker.h"
 #include "test.h"
+#include "utils.h"
 
 #define DEFAULT_SERVER_PORT 8080
 
@@ -27,8 +28,7 @@ int runServer()
 		return EXIT_FAILURE;
 	}
 
-	// todo rework all logging using debug/release switch
-	puts("Server socket initialized successfully.");
+	dprint("Server socket initialized successfully.\n");
 
 	int result = init_context_storage();
 	if (result == -1)

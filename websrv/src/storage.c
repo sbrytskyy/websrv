@@ -269,7 +269,7 @@ int add(struct storage* pStorage, struct socket_context* pSc)
 
 		return 0;
 	}
-	fprintf(stderr, "[error] Socket Context already exists for output.");
+	fprintf(stderr, "[error] Socket Context already exists: socket=%d.\n", pSc->client_socket);
 
 	return -1;
 }

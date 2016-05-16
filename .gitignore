@@ -35,4 +35,5 @@
 # Eclispe
 .metadata
 Debug/
-/jmeter.log
+Release/
+*.log
