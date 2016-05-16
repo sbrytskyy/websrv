@@ -10,6 +10,7 @@
 #include <stdio.h>
 
 #include "protocol.h"
+#include "utils.h"
 
 int process_http(struct socket_context* pSc)
 {
@@ -17,16 +18,25 @@ int process_http(struct socket_context* pSc)
 	char* index = strstr(pSc->pRequest, "GET");
 	if (index == pSc->pRequest)
 	{
-		char* response =
-				"HTTP/1.1 200 OK\r\n\r\n<html>\r\n<body>\r\n<h1>Hello, World!</h1>\r\n</body>\r\n</html>";
+		char* response_header = "HTTP/1.1 200 OK\r\n\r\n";
+		char full_path[PATH_MAX];
+		get_current_dir(full_path, "/root/index.html");
 
-		pSc->pResponse = malloc(strlen(response) + 1);
-		if (pSc->pResponse == NULL)
+		// todo optimize twice allocation
+		char* response = read_file(full_path);
+		if (response)
 		{
-			fprintf(stderr, "Error creating response.\n");
-			return -1;
+			pSc->pResponse = malloc(strlen(response_header) + strlen(response) + 1);
+			if (pSc->pResponse == NULL)
+			{
+				fprintf(stderr, "Error creating response.\n");
+				return -1;
+			}
+			strcpy(pSc->pResponse, response_header);
+			strcat(pSc->pResponse, response);
+
+			free(response);
 		}
-		strcpy(pSc->pResponse, response);
 	}
 	else
 	{

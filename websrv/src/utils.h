@@ -9,6 +9,7 @@
 #define UTILS_H_
 
 #include <stdio.h>
+#include <linux/limits.h>
 
 #ifdef DEBUG
 #define dprint(...) \
@@ -17,5 +18,9 @@
 #define dprint(...) \
 		do {  } while (0)
 #endif
+
+int get_current_dir(char* full_path, char* filename);
+char* read_file(char* filename);
+
 
 #endif /* UTILS_H_ */
