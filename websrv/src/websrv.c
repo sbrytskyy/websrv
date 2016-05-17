@@ -36,7 +36,7 @@ int runServer()
 		perror("Error creating contex storage.");
 		return -1;
 	}
-	result = start_worker();
+	result = start_workers();
 	if (result == -1)
 	{
 		perror("Error creating worker.");
@@ -45,7 +45,7 @@ int runServer()
 
 	process_incoming_connections(server_socket);
 
-	stop_worker();
+	stop_workers();
 	destroy_context_storage();
 	pthread_exit(EXIT_SUCCESS);
 }

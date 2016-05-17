@@ -133,7 +133,7 @@ int add_input(struct socket_context* pSc)
 	int result = add(incoming_queue, pSc);
 	if (result != -1)
 	{
-		pthread_cond_signal(&empty_inqueue_cv);
+		pthread_cond_broadcast(&empty_inqueue_cv);
 	}
 
 	pthread_mutex_unlock(&inqueue_mutex);
@@ -148,7 +148,7 @@ int add_output(struct socket_context* pSc)
 	int result = add(output_list, pSc);
 	if (result != -1)
 	{
-		pthread_cond_signal(&empty_outqueue_cv);
+		pthread_cond_broadcast(&empty_outqueue_cv);
 	}
 
 	pthread_mutex_unlock(&outqueue_mutex);

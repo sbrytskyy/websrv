@@ -8,7 +8,7 @@
 #ifndef WORKER_H_
 #define WORKER_H_
 
-int start_worker();
-void stop_worker();
+int start_workers();
+void stop_workers();
 
 #endif /* WORKER_H_ */

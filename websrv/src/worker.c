@@ -18,24 +18,35 @@
 #include "utils.h"
 
 static void * worker_thread(void *);
+#define NUMBER_OF_WORKERS 3
 
 volatile int thread_state = 0; // 0: normal, -1: stop thread, 1: do something
 
-int start_worker()
+int start_workers()
 {
-	pthread_t worker;
-	int rc = pthread_create(&worker, NULL, worker_thread,
-			(void*) &thread_state);
-	if (rc)
+	for (int i = 0; i < NUMBER_OF_WORKERS; i++)
 	{
-		fprintf(stderr, "ERROR; return code from pthread_create() is %d\n", rc);
-		return -1;
+		pthread_t worker;
+		int rc = pthread_create(&worker, NULL, worker_thread,
+				(void*) &thread_state);
+		if (rc)
+		{
+			fprintf(stderr,
+					"ERROR; return code from %d pthread_create() is %d\n", i,
+					rc);
+
+			if (i == 0)
+			{
+				fprintf(stderr, "ERROR; No workers have been created.\n");
+				return -1;
+			}
+		}
 	}
 
 	return 0;
 }
 
-void stop_worker()
+void stop_workers()
 {
 	thread_state = 1;
 }

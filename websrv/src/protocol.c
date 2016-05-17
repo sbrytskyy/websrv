@@ -15,13 +15,14 @@
 #include "protocol.h"
 #include "utils.h"
 
+const char* response_header = "HTTP/1.1 200 OK\r\n\r\n";
+
 int process_http(struct socket_context* pSc)
 {
 	pSc->close_after_response = 1;
 	char* index = strstr(pSc->pRequest, "GET");
 	if (index == pSc->pRequest)
 	{
-		char* response_header = "HTTP/1.1 200 OK\r\n\r\n";
 		char full_path[PATH_MAX];
 		full_path[0] = '\0';
 

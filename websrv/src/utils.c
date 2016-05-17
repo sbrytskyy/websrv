@@ -36,13 +36,12 @@ const char* get_root_dir()
 char* read_file(char* filename)
 {
 	char* buffer = 0;
-	long length;
 	FILE* f = fopen(filename, "rb");
 
 	if (f)
 	{
 		fseek(f, 0, SEEK_END);
-		length = ftell(f);
+		long length = ftell(f);
 		fseek(f, 0, SEEK_SET);
 		buffer = malloc(length);
 		if (buffer)
