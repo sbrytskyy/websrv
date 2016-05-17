@@ -12,23 +12,25 @@
 
 #include "utils.h"
 
-// todo rework. Read current dir once.
-int get_current_dir(char* full_path, char* filename)
+char root_dir[PATH_MAX];
+
+const char* get_root_dir()
 {
-	if (getcwd(full_path, PATH_MAX) != NULL)
+	if (root_dir[0] == '\0')
 	{
-		if (strcat(full_path, filename) == NULL)
+		if (getcwd(root_dir, PATH_MAX) == NULL)
+		{
+			perror("getcwd() error");
+			return NULL;
+		}
+		if (strcat(root_dir, "/root") == NULL)
 		{
 			fprintf(stderr, "strcat error: %m\n");
-			return -1;
+			return NULL;
 		}
+
 	}
-	else
-	{
-		perror("getcwd() error");
-		return -1;
-	}
-	return 0;
+	return root_dir;
 }
 
 char* read_file(char* filename)

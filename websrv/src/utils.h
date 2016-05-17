@@ -19,7 +19,7 @@
 		do {  } while (0)
 #endif
 
-int get_current_dir(char* full_path, char* filename);
+const char* get_root_dir();
 char* read_file(char* filename);
 
 
