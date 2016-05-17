@@ -52,6 +52,9 @@ int runServer()
 
 int main(void)
 {
+#ifdef DEBUG
+	setvbuf(stdout, NULL, _IONBF, 0);
+#endif
 //	return test_storage();
 	return runServer();
 }

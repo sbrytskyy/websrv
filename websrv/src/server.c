@@ -44,7 +44,7 @@ int read_incoming_data(int client_socket)
 	else
 	{
 		buffer[nbytes] = '\0';
-		//dprint("Received message [%s], length: %d\n", buffer, nbytes);
+		dprint("Received message [%s], length: %d\n", buffer, nbytes);
 		dprint("Received bytes: %d\n", nbytes);
 
 		struct socket_context* pSc = create_socket_context(client_socket,
