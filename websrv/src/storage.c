@@ -170,8 +170,8 @@ struct socket_context* poll_first_input()
 	struct list_item* pItem = incoming_queue->pFirst;
 	if (pItem != NULL)
 	{
-		delete(incoming_queue, pItem->pSc);
 		pSc = pItem->pSc;
+		delete(incoming_queue, pItem->pSc);
 	}
 	pthread_mutex_unlock(&inqueue_mutex);
 
@@ -187,8 +187,8 @@ struct socket_context* get_first_input()
 	struct list_item* pItem = incoming_queue->pFirst;
 	if (pItem != NULL)
 	{
-		delete(incoming_queue, pItem->pSc);
 		pSc = pItem->pSc;
+		delete(incoming_queue, pItem->pSc);
 	}
 	pthread_mutex_unlock(&inqueue_mutex);
 
@@ -207,8 +207,8 @@ struct socket_context* poll_output(int client_socket)
 		pItem = find(output_list, client_socket);
 		if (pItem != NULL)
 		{
-			delete(output_list, pItem->pSc);
 			pSc = pItem->pSc;
+			delete(output_list, pItem->pSc);
 			break;
 		}
 
@@ -229,8 +229,8 @@ struct socket_context* get_output(int client_socket)
 	struct list_item* pItem = find(output_list, client_socket);
 	if (pItem != NULL)
 	{
-		delete(output_list, pItem->pSc);
 		pSc = pItem->pSc;
+		delete(output_list, pItem->pSc);
 	}
 
 	pthread_mutex_unlock(&outqueue_mutex);

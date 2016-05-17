@@ -44,7 +44,8 @@ int read_incoming_data(int client_socket)
 	else
 	{
 		buffer[nbytes] = '\0';
-		dprint("Received message [%s], length: %d\n", buffer, nbytes);
+		//dprint("Received message [%s], length: %d\n", buffer, nbytes);
+		dprint("Received bytes: %d\n", nbytes);
 
 		struct socket_context* pSc = create_socket_context(client_socket,
 				buffer);
@@ -72,7 +73,7 @@ int set_socket_write_mode(int client_socket)
 {
 	struct epoll_event ev;
 
-	ev.events = EPOLLIN | EPOLLOUT;
+	ev.events = EPOLLOUT;
 	ev.data.u64 = 0LL;
 	ev.data.fd = client_socket;
 
@@ -96,10 +97,8 @@ int write_response(int client_socket)
 	int result = -1;
 	if (pSc != NULL && pSc->pResponse != NULL)
 	{
-		char* response = pSc->pResponse;
-		dprint("[write_response] [%s]\n", response);
-
-		result = send(client_socket, response, strlen(response), 0);
+		result = send(client_socket, pSc->pResponse, strlen(pSc->pResponse), 0);
+		//dprint("[write_response] [%s]\n", response);
 		dprint("Sent %d bytes as response.\n", result);
 
 		if (result > 0 && pSc->close_after_response == 1)

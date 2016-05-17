@@ -12,16 +12,22 @@
 
 #include "utils.h"
 
+// todo rework. Read current dir once.
 int get_current_dir(char* full_path, char* filename)
 {
 	if (getcwd(full_path, PATH_MAX) != NULL)
 	{
-		dprint("Current working dir: %s\n", full_path);
-		strcat(full_path, filename);
-		dprint("Full pathname: %s\n", full_path);
+		if (strcat(full_path, filename) == NULL)
+		{
+			fprintf(stderr, "strcat error: %m\n");
+			return -1;
+		}
 	}
 	else
+	{
 		perror("getcwd() error");
+		return -1;
+	}
 	return 0;
 }
 

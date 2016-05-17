@@ -20,21 +20,25 @@ int process_http(struct socket_context* pSc)
 	{
 		char* response_header = "HTTP/1.1 200 OK\r\n\r\n";
 		char full_path[PATH_MAX];
+
+		// todo hardcoded
 		get_current_dir(full_path, "/root/index.html");
 
 		// todo optimize twice allocation
 		char* response = read_file(full_path);
 		if (response)
 		{
-			pSc->pResponse = malloc(strlen(response_header) + strlen(response) + 1);
-			if (pSc->pResponse == NULL)
+			pSc->pResponse = malloc(
+					strlen(response_header) + strlen(response) + 1);
+			if (pSc->pResponse != NULL)
 			{
-				fprintf(stderr, "Error creating response.\n");
-				return -1;
+				if (strcpy(pSc->pResponse, response_header) == NULL
+						|| strcat(pSc->pResponse, response) == NULL)
+				{
+					fprintf(stderr, "Error creating response.\n");
+					free(pSc->pResponse);
+				}
 			}
-			strcpy(pSc->pResponse, response_header);
-			strcat(pSc->pResponse, response);
-
 			free(response);
 		}
 	}
