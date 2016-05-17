@@ -8,6 +8,9 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <sys/mman.h>
 
 #include "protocol.h"
 #include "utils.h"
@@ -35,22 +38,29 @@ int process_http(struct socket_context* pSc)
 			return -1;
 		}
 
-		// todo optimize twice allocation
-		char* response = read_file(full_path);
-		if (response)
+		int fd = open(full_path, O_RDONLY);
+		if (fd)
 		{
-			pSc->pResponse = malloc(
-					strlen(response_header) + strlen(response) + 1);
-			if (pSc->pResponse != NULL)
+			int len = lseek(fd, 0, SEEK_END);
+			char* data = mmap(0, len, PROT_READ, MAP_PRIVATE, fd, 0);
+
+			if (data)
 			{
-				if (strcpy(pSc->pResponse, response_header) == NULL
-						|| strcat(pSc->pResponse, response) == NULL)
+				pSc->pResponse = malloc(
+						strlen(response_header) + len + 1);
+				if (pSc->pResponse != NULL)
 				{
-					fprintf(stderr, "Error creating response.\n");
-					free(pSc->pResponse);
+					if (strcpy(pSc->pResponse, response_header) == NULL
+							|| strcat(pSc->pResponse, data) == NULL)
+					{
+						fprintf(stderr, "Error creating response.\n");
+						free(pSc->pResponse);
+					}
 				}
+
+				munmap(data, len);
 			}
-			free(response);
+			close(fd);
 		}
 	}
 	else
