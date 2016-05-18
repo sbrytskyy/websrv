@@ -21,10 +21,10 @@ int init_context_storage();
 int destroy_context_storage();
 
 struct socket_context* create_socket_context(int client_socket, char* buffer);
-void destroy_socket_context(struct socket_context* pSc);
+void destroy_socket_context(struct socket_context* sc);
 
-int add_input(struct socket_context* pSc);
-int add_output(struct socket_context* pSc);
+int add_input(struct socket_context* sc);
+int add_output(struct socket_context* sc);
 struct socket_context* poll_first_input();
 struct socket_context* get_first_input();
 struct socket_context* get_output(int client_socket);

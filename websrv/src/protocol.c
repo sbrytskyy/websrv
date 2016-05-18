@@ -22,15 +22,17 @@ static const char* HEADER_ACCEPT = "Accept:";
 static const char* HEADER_CONTENT_TYPE = "Content-Type:";
 static const char* HEADER_CONTENT_LENGTH = "Content-Length:";
 
+static const char* DEFAULT_CONTENT_TYPE = "text/html";
+
 static const char* RESPONSE_HEADER_200_OK = "HTTP/1.1 200 OK";
 
 struct http_context
 {
-	char* method;
-	char* request_uri;
-	char* http_version;
-	char* content_type;
-	char* content_length;
+	const char* method;
+	const char* request_uri;
+	const char* http_version;
+	const char* content_type;
+	const char* content_length;
 };
 
 int process_header(char* request, struct http_context* hc)
@@ -83,11 +85,11 @@ int process_header(char* request, struct http_context* hc)
 	return result;
 }
 
-int process_http(struct socket_context* pSc)
+int process_http(struct socket_context* sc)
 {
-	pSc->close_after_response = 1;
-	char* index = strstr(pSc->request, METHOD_GET);
-	if (index == pSc->request)
+	sc->close_after_response = 1;
+	char* index = strstr(sc->request, METHOD_GET);
+	if (index == sc->request)
 	{
 
 		// todo think how to optimize 0. keep one buffer per worker 1. by copying once
@@ -102,10 +104,15 @@ int process_http(struct socket_context* pSc)
 		}
 
 		struct http_context hc;
-		if (process_header(pSc->request, &hc) == -1)
+		if (process_header(sc->request, &hc) == -1)
 		{
 			fprintf(stderr, "Error parsing request.\n");
 			return -1;
+		}
+
+		if (hc.content_type == NULL)
+		{
+			hc.content_type = DEFAULT_CONTENT_TYPE;
 		}
 
 		if (strcat(full_path, hc.request_uri) == NULL)
@@ -140,31 +147,32 @@ int process_http(struct socket_context* pSc)
 
 			int header_len = strlen(RESPONSE_HEADER_200_OK) + strlen(CRLF)
 							+ strlen(HEADER_CONTENT_TYPE) + 1 + strlen(hc.content_type) + strlen(CRLF)
-							+ strlen(HEADER_CONTENT_LENGTH) + 1 + strlen(len_str) + 2 * strlen(CRLF);
+//							+ strlen(HEADER_CONTENT_LENGTH) + 1 + strlen(len_str) + strlen(CRLF)
+							+ strlen(CRLF);
 
-			pSc->response = malloc(header_len + data_len + 1);
-			if (pSc->response != NULL)
+			sc->response = malloc(header_len + data_len);
+			if (sc->response != NULL)
 			{
-				if (strcpy(pSc->response, RESPONSE_HEADER_200_OK) == NULL
-						|| strcat(pSc->response, CRLF) == NULL
-						|| strcat(pSc->response, HEADER_CONTENT_TYPE) == NULL
-						|| strcat(pSc->response, " ") == NULL
-						|| strcat(pSc->response, hc.content_type) == NULL
-						|| strcat(pSc->response, CRLF) == NULL
-						|| strcat(pSc->response, HEADER_CONTENT_LENGTH) == NULL
-						|| strcat(pSc->response, " ") == NULL
-						|| strcat(pSc->response, len_str) == NULL
-						|| strcat(pSc->response, CRLF) == NULL
-						|| strcat(pSc->response, CRLF) == NULL)
+				if (strcpy(sc->response, RESPONSE_HEADER_200_OK) == NULL
+						|| strcat(sc->response, CRLF) == NULL
+						|| strcat(sc->response, HEADER_CONTENT_TYPE) == NULL
+						|| strcat(sc->response, " ") == NULL
+						|| strcat(sc->response, hc.content_type) == NULL
+//						|| strcat(sc->response, CRLF) == NULL
+//						|| strcat(sc->response, HEADER_CONTENT_LENGTH) == NULL
+//						|| strcat(sc->response, " ") == NULL
+//						|| strcat(sc->response, len_str) == NULL
+						|| strcat(sc->response, CRLF) == NULL
+						|| strcat(sc->response, CRLF) == NULL)
 				{
 					fprintf(stderr, "Error creating response.\n");
-					free(pSc->response);
+					free(sc->response);
 				}
 				else
 				{
-					memcpy(pSc->response + header_len, data, data_len);
+					memcpy(sc->response + header_len, data, data_len);
 
-					pSc->response_len = header_len + data_len;
+					sc->response_len = header_len + data_len;
 				}
 			}
 

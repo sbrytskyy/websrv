@@ -57,17 +57,17 @@ static void * worker_thread(void * p)
 
 	while (1)
 	{
-		struct socket_context* pSc = poll_first_input();
+		struct socket_context* sc = poll_first_input();
 
-		if (pSc != NULL)
+		if (sc != NULL)
 		{
-//			dprint("Socket=%d; Request [%s]\n", pSc->client_socket,
-//					pSc->request);
+//			dprint("Socket=%d; Request [%s]\n", sc->client_socket,
+//					sc->request);
 
-			process_http(pSc);
+			process_http(sc);
 
-			add_output(pSc);
-			set_socket_write_mode(pSc->client_socket);
+			add_output(sc);
+			set_socket_write_mode(sc->client_socket);
 		}
 
 		if (*pthread_state == -1)

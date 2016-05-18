@@ -47,17 +47,17 @@ int read_incoming_data(int client_socket)
 		dprint("Received message [%s], length: %d\n\n", buffer, nbytes);
 		dprint("Received bytes: %d\n", nbytes);
 
-		struct socket_context* pSc = create_socket_context(client_socket,
+		struct socket_context* sc = create_socket_context(client_socket,
 				buffer);
 
-		if (pSc == NULL)
+		if (sc == NULL)
 		{
 			fprintf(stderr, "Error creating socket context. Socket=%d\n",
 					client_socket);
 			return -1;
 		}
 
-		int result = add_input(pSc);
+		int result = add_input(sc);
 		if (result == -1)
 		{
 			fprintf(stderr, "Error adding input data to storage. Socket=%d\n",
@@ -92,16 +92,16 @@ int write_response(int client_socket)
 {
 	dprint("[write_response] socket=%d\n", client_socket);
 
-	struct socket_context* pSc = get_output(client_socket);
+	struct socket_context* sc = get_output(client_socket);
 
 	int result = -1;
-	if (pSc != NULL && pSc->response != NULL)
+	if (sc != NULL && sc->response != NULL)
 	{
-		result = send(client_socket, pSc->response, pSc->response_len, 0);
-		dprint("[write_response] [%s]\n", pSc->response);
+		result = send(client_socket, sc->response, sc->response_len, 0);
+		dprint("[write_response] [%s]\n", sc->response);
 		dprint("Sent %d bytes as response.\n", result);
 
-		if (result > 0 && pSc->close_after_response == 1)
+		if (result > 0 && sc->close_after_response == 1)
 		{
 			result = -1;
 		}
@@ -111,7 +111,7 @@ int write_response(int client_socket)
 		fprintf(stderr, "Response is not ready for socket %d\n", client_socket);
 	}
 
-	destroy_socket_context(pSc);
+	destroy_socket_context(sc);
 	return result;
 }
 

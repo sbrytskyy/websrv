@@ -17,17 +17,17 @@ int test_storage()
 	{
 		char str[16];
 		sprintf(str, "%d", i);
-		struct socket_context* pSc = create_socket_context(i, str);
+		struct socket_context* sc = create_socket_context(i, str);
 		printf("%s\n", str);
 
-		add_input(pSc);
+		add_input(sc);
 	}
 
-	struct socket_context* pSc;
+	struct socket_context* sc;
 
-	while ((pSc = get_first_input()) != NULL)
+	while ((sc = get_first_input()) != NULL)
 	{
-		printf("Request: [%s]\n", pSc->request);
+		printf("Request: [%s]\n", sc->request);
 	}
 
 	destroy_context_storage();
