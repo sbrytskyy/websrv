@@ -27,7 +27,7 @@ int test_storage()
 
 	while ((pSc = get_first_input()) != NULL)
 	{
-		printf("Request: [%s]\n", pSc->pRequest);
+		printf("Request: [%s]\n", pSc->request);
 	}
 
 	destroy_context_storage();

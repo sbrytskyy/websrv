@@ -102,14 +102,14 @@ struct socket_context* create_socket_context(int client_socket, char* buffer)
 	if (pSc != NULL)
 	{
 		pSc->client_socket = client_socket;
-		pSc->pRequest = malloc(strlen(buffer));
-		if (pSc->pRequest == NULL)
+		pSc->request = malloc(strlen(buffer));
+		if (pSc->request == NULL)
 		{
 			free(pSc);
 			return NULL;
 		}
-		strcpy(pSc->pRequest, buffer);
-		pSc->pResponse = NULL;
+		strcpy(pSc->request, buffer);
+		pSc->response = NULL;
 		pSc->close_after_response = 0;
 	}
 
@@ -118,11 +118,11 @@ struct socket_context* create_socket_context(int client_socket, char* buffer)
 
 void destroy_socket_context(struct socket_context* pSc)
 {
-	if (pSc->pResponse)
+	if (pSc->response)
 	{
-		free(pSc->pResponse);
+		free(pSc->response);
 	}
-	free(pSc->pRequest);
+	free(pSc->request);
 	free(pSc);
 }
 

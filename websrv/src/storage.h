@@ -11,8 +11,9 @@
 struct socket_context
 {
 	int client_socket;
-	char* pRequest;
-	char* pResponse;
+	char* request;
+	char* response;
+	int response_len;
 	int close_after_response;
 };
 

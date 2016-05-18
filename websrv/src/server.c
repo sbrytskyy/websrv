@@ -44,7 +44,7 @@ int read_incoming_data(int client_socket)
 	else
 	{
 		buffer[nbytes] = '\0';
-		dprint("Received message [%s], length: %d\n", buffer, nbytes);
+		dprint("Received message [%s], length: %d\n\n", buffer, nbytes);
 		dprint("Received bytes: %d\n", nbytes);
 
 		struct socket_context* pSc = create_socket_context(client_socket,
@@ -95,10 +95,10 @@ int write_response(int client_socket)
 	struct socket_context* pSc = get_output(client_socket);
 
 	int result = -1;
-	if (pSc != NULL && pSc->pResponse != NULL)
+	if (pSc != NULL && pSc->response != NULL)
 	{
-		result = send(client_socket, pSc->pResponse, strlen(pSc->pResponse), 0);
-		//dprint("[write_response] [%s]\n", response);
+		result = send(client_socket, pSc->response, pSc->response_len, 0);
+		dprint("[write_response] [%s]\n", pSc->response);
 		dprint("Sent %d bytes as response.\n", result);
 
 		if (result > 0 && pSc->close_after_response == 1)

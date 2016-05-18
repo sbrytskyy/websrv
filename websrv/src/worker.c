@@ -61,8 +61,8 @@ static void * worker_thread(void * p)
 
 		if (pSc != NULL)
 		{
-			dprint("Socket=%d; Request [%s]\n", pSc->client_socket,
-					pSc->pRequest);
+//			dprint("Socket=%d; Request [%s]\n", pSc->client_socket,
+//					pSc->request);
 
 			process_http(pSc);
 
