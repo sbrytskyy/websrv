@@ -87,7 +87,9 @@ int process_header(char* request, struct http_context* hc)
 
 int process_http(struct socket_context* sc)
 {
-	sc->close_after_response = 1;
+	// todo process keep-alive and decide to close connection or not. Currently do not close
+	//sc->close_after_response = 1;
+
 	char* index = strstr(sc->request, METHOD_GET);
 	if (index == sc->request)
 	{
@@ -146,9 +148,9 @@ int process_http(struct socket_context* sc)
 			sprintf(len_str, "%d", data_len);
 
 			int header_len = strlen(RESPONSE_HEADER_200_OK) + strlen(CRLF)
-							+ strlen(HEADER_CONTENT_TYPE) + 1 + strlen(hc.content_type) + strlen(CRLF)
-//							+ strlen(HEADER_CONTENT_LENGTH) + 1 + strlen(len_str) + strlen(CRLF)
-							+ strlen(CRLF);
+					+ strlen(HEADER_CONTENT_TYPE) + 1 + strlen(hc.content_type)
+					+ strlen(CRLF) + strlen(HEADER_CONTENT_LENGTH) + 1
+					+ strlen(len_str) + strlen(CRLF) + strlen(CRLF);
 
 			sc->response = malloc(header_len + data_len);
 			if (sc->response != NULL)
@@ -158,10 +160,10 @@ int process_http(struct socket_context* sc)
 						|| strcat(sc->response, HEADER_CONTENT_TYPE) == NULL
 						|| strcat(sc->response, " ") == NULL
 						|| strcat(sc->response, hc.content_type) == NULL
-//						|| strcat(sc->response, CRLF) == NULL
-//						|| strcat(sc->response, HEADER_CONTENT_LENGTH) == NULL
-//						|| strcat(sc->response, " ") == NULL
-//						|| strcat(sc->response, len_str) == NULL
+						|| strcat(sc->response, CRLF) == NULL
+						|| strcat(sc->response, HEADER_CONTENT_LENGTH) == NULL
+						|| strcat(sc->response, " ") == NULL
+						|| strcat(sc->response, len_str) == NULL
 						|| strcat(sc->response, CRLF) == NULL
 						|| strcat(sc->response, CRLF) == NULL)
 				{
