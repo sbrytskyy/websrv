@@ -21,6 +21,7 @@ static const char* METHOD_GET = "GET";
 static const char* HEADER_ACCEPT = "Accept:";
 static const char* HEADER_CONTENT_TYPE = "Content-Type:";
 static const char* HEADER_CONTENT_LENGTH = "Content-Length:";
+static const char* HEADER_CONNECTION_KEEP_ALIVE = "Connection: keep-alive";
 
 static const char* DEFAULT_CONTENT_TYPE = "text/html";
 
@@ -85,26 +86,14 @@ int process_header(char* request, struct http_context* hc)
 	return result;
 }
 
-int process_http(struct socket_context* sc)
+int process_http(struct socket_context* sc, char* full_path)
 {
 	// todo process keep-alive and decide to close connection or not. Currently do not close
-	//sc->close_after_response = 1;
+//	sc->close_after_response = 1;
 
 	char* index = strstr(sc->request, METHOD_GET);
 	if (index == sc->request)
 	{
-
-		// todo think how to optimize 0. keep one buffer per worker 1. by copying once
-
-		char full_path[PATH_MAX];
-		full_path[0] = '\0';
-
-		if (strcpy(full_path, get_root_dir()) == NULL)
-		{
-			fprintf(stderr, "strcpy error: %m\n");
-			return -1;
-		}
-
 		struct http_context hc;
 		if (process_header(sc->request, &hc) == -1)
 		{
@@ -148,9 +137,10 @@ int process_http(struct socket_context* sc)
 			sprintf(len_str, "%d", data_len);
 
 			int header_len = strlen(RESPONSE_HEADER_200_OK) + strlen(CRLF)
-					+ strlen(HEADER_CONTENT_TYPE) + 1 + strlen(hc.content_type)
-					+ strlen(CRLF) + strlen(HEADER_CONTENT_LENGTH) + 1
-					+ strlen(len_str) + strlen(CRLF) + strlen(CRLF);
+					+ strlen(HEADER_CONTENT_TYPE) + 1 + strlen(hc.content_type) + strlen(CRLF)
+					+ strlen(HEADER_CONTENT_LENGTH) + 1 + strlen(len_str) + strlen(CRLF)
+					+ strlen(HEADER_CONNECTION_KEEP_ALIVE) + strlen(CRLF)
+					+ strlen(CRLF);
 
 			sc->response = malloc(header_len + data_len);
 			if (sc->response != NULL)
@@ -164,6 +154,8 @@ int process_http(struct socket_context* sc)
 						|| strcat(sc->response, HEADER_CONTENT_LENGTH) == NULL
 						|| strcat(sc->response, " ") == NULL
 						|| strcat(sc->response, len_str) == NULL
+						|| strcat(sc->response, CRLF) == NULL
+						|| strcat(sc->response, HEADER_CONNECTION_KEEP_ALIVE) == NULL
 						|| strcat(sc->response, CRLF) == NULL
 						|| strcat(sc->response, CRLF) == NULL)
 				{

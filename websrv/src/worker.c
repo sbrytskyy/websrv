@@ -22,8 +22,14 @@ static void * worker_thread(void *);
 
 volatile int thread_state = 0; // 0: normal, -1: stop thread, 1: do something
 
+int root_folder_name_len;
+const char* root_folder_name;
+
 int start_workers()
 {
+	root_folder_name = get_root_dir();
+	root_folder_name_len = strlen(root_folder_name);
+
 	for (int i = 0; i < NUMBER_OF_WORKERS; i++)
 	{
 		pthread_t worker;
@@ -53,27 +59,40 @@ void stop_workers()
 
 static void * worker_thread(void * p)
 {
-	int* pthread_state = p;
+	int* state = p;
 
-	while (1)
+	char* working_path = malloc(PATH_MAX + 1);
+
+	if (working_path != NULL)
 	{
-		struct socket_context* sc = poll_first_input();
-
-		if (sc != NULL)
+		if (strcpy(working_path, root_folder_name) != NULL)
 		{
-//			dprint("Socket=%d; Request [%s]\n", sc->client_socket,
-//					sc->request);
+			while (1)
+			{
+				struct socket_context* sc = poll_first_input();
 
-			process_http(sc);
+				if (sc != NULL)
+				{
+					dprint("Socket=%d; Request [%s]\n", sc->client_socket,
+							sc->request);
 
-			add_output(sc);
-			set_socket_write_mode(sc->client_socket);
+					working_path[root_folder_name_len] = '\0';
+
+					// todo if process_http returns -1 instead of adding to response queue, just remove it and close socket as error.
+					process_http(sc, working_path);
+
+					add_output(sc);
+					set_socket_write_mode(sc->client_socket);
+				}
+
+				if (*state == -1)
+				{
+					break;
+				}
+			}
 		}
 
-		if (*pthread_state == -1)
-		{
-			break;
-		}
+		free(working_path);
 	}
 
 	pthread_exit(NULL);

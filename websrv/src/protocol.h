@@ -10,6 +10,6 @@
 
 #include "storage.h"
 
-int process_http(struct socket_context* sc);
+int process_http(struct socket_context* sc, char* full_path);
 
 #endif /* PROTOCOL_H_ */
