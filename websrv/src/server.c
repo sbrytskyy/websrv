@@ -33,13 +33,10 @@ int read_incoming_data(int client_socket)
 	if (nbytes < 0)
 	{
 		fprintf(stderr, "Error reading socket %d: %m\n", client_socket);
-		return -1;
 	}
 	else if (nbytes == 0)
 	{
-		fprintf(stderr, "Nothing has been read from socket %d: %m\n",
-				client_socket);
-		return -1;
+		dprint("Socket %d has been closed by client: %m\n", client_socket);
 	}
 	else
 	{
@@ -64,9 +61,8 @@ int read_incoming_data(int client_socket)
 					client_socket);
 			return -1;
 		}
-
-		return 0;
 	}
+	return nbytes;
 }
 
 int set_socket_write_mode(int client_socket)
@@ -297,10 +293,8 @@ int process_incoming_connections(int server_socket)
 				}
 				else
 				{
-					if (read_incoming_data(handle) < 0)
+					if (read_incoming_data(handle) <= 0)
 					{
-						fprintf(stderr, "Receive from socket %d failed: %m\n",
-								handle);
 						pollsize--;
 						close_handle(handle);
 						continue;
