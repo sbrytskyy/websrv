@@ -19,11 +19,20 @@
 #include "utils.h"
 
 #define DEFAULT_SERVER_PORT 8080
+#define DEFAULT_SECURED_SERVER_PORT 8443
 
 int runServer()
 {
-	int server_socket = init_server_socket(DEFAULT_SERVER_PORT);
-	if (server_socket < 0)
+	int server_sockets[2];
+
+	server_sockets[0] = init_server_socket(DEFAULT_SERVER_PORT);
+	if (server_sockets[0] < 0)
+	{
+		return EXIT_FAILURE;
+	}
+
+	server_sockets[1] = init_server_socket(DEFAULT_SECURED_SERVER_PORT);
+	if (server_sockets[1] < 0)
 	{
 		return EXIT_FAILURE;
 	}
@@ -43,7 +52,7 @@ int runServer()
 		return -1;
 	}
 
-	process_incoming_connections(server_socket);
+	process_incoming_connections(server_sockets);
 
 	stop_workers();
 	destroy_context_storage();
