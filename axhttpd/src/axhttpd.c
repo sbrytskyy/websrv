@@ -118,6 +118,8 @@ static void die(int sigtype)
 
 int main(int argc, char *argv[]) 
 {
+	setvbuf(stdout, NULL, _IONBF, 0);
+
     fd_set rfds, wfds;
     struct connstruct *tp, *to;
     struct serverstruct *sp;
