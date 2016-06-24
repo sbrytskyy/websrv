@@ -24,33 +24,54 @@
 
 int epoll_fd;
 
+struct serverstruct *servers;
+struct connstruct *connections;
+
 // todo rework buffer handling
 char buffer[MAX_PACKET_SIZE];
 
-int read_incoming_data(int client_socket)
+int read_incoming_data(struct connstruct *cs)
 {
-	int nbytes = read(client_socket, buffer, sizeof(buffer));
+	int nbytes = -1;
+
+	if (cs == NULL)
+	{
+		fprintf(stderr, "Read incoming data failed. Empty connection structure passed.\n");
+		return -1;
+	}
+
+	if (cs->is_ssl)
+	{
+		// todo add ssl support
+		dprint("Socket %d is secured. SSL will be added.\n", cs->handle);
+		nbytes = read(cs->handle, buffer, sizeof(buffer));
+	}
+	else
+	{
+		dprint("Reading from unsecured Socket: %d.\n", cs->handle);
+		nbytes = read(cs->handle, buffer, sizeof(buffer));
+	}
 	if (nbytes < 0)
 	{
-		fprintf(stderr, "Error reading socket %d: %m\n", client_socket);
+		fprintf(stderr, "Error reading socket %d: %m\n", cs->handle);
 	}
 	else if (nbytes == 0)
 	{
-		dprint("Socket %d has been closed by client: %m\n", client_socket);
+		dprint("Socket %d has been closed by client: %m\n", cs->handle);
 	}
 	else
 	{
 		buffer[nbytes] = '\0';
-		dprint("Received message [%s], length: %d\n\n", buffer, nbytes);
+		//dprint("Received message [%s], length: %d\n\n", buffer, nbytes);
 		dprint("Received bytes: %d\n", nbytes);
 
-		struct socket_context* sc = create_socket_context(client_socket,
+		struct socket_context* sc = create_socket_context(cs->handle,
 				buffer);
 
 		if (sc == NULL)
 		{
 			fprintf(stderr, "Error creating socket context. Socket=%d\n",
-					client_socket);
+					cs->handle);
 			return -1;
 		}
 
@@ -58,7 +79,7 @@ int read_incoming_data(int client_socket)
 		if (result == -1)
 		{
 			fprintf(stderr, "Error adding input data to storage. Socket=%d\n",
-					client_socket);
+					cs->handle);
 			return -1;
 		}
 	}
@@ -84,17 +105,33 @@ int set_socket_write_mode(int client_socket)
 	return result;
 }
 
-int write_response(int client_socket)
+int write_response(struct connstruct *cs)
 {
-	dprint("[write_response] socket=%d\n", client_socket);
+	if (cs == NULL)
+	{
+		fprintf(stderr, "Write response failed. Empty connection structure passed.\n");
+		return -1;
+	}
 
-	struct socket_context* sc = get_output(client_socket);
+	dprint("[write_response] socket=%d\n", cs->handle);
+
+	struct socket_context* sc = get_output(cs->handle);
 
 	int result = -1;
 	if (sc != NULL && sc->response != NULL)
 	{
-		result = send(client_socket, sc->response, sc->response_len, 0);
-		dprint("[write_response] [%s]\n", sc->response);
+		if (cs->is_ssl)
+		{
+			result = send(cs->handle, sc->response, sc->response_len, 0);
+			dprint("[write_response] using secured SSL connection.\n");
+			//dprint("[write_response] using SSL connection: [%s]\n", sc->response);
+		}
+		else
+		{
+			result = send(cs->handle, sc->response, sc->response_len, 0);
+			dprint("[write_response] using unsecured plain socket.\n");
+			//dprint("[write_response] using plain socket: [%s]\n", sc->response);
+		}
 		dprint("Sent %d bytes as response.\n", result);
 
 		if (result > 0 && sc->close_after_response == 1)
@@ -104,17 +141,80 @@ int write_response(int client_socket)
 	}
 	else
 	{
-		fprintf(stderr, "Response is not ready for socket %d\n", client_socket);
+		fprintf(stderr, "Response is not ready for socket %d\n", cs->handle);
 	}
 
 	destroy_socket_context(sc);
 	return result;
 }
 
+void addtoservers(int handle)
+{
+    struct serverstruct *tp = (struct serverstruct *)
+                            calloc(1, sizeof(struct serverstruct));
+    tp->next = servers;
+    tp->handle = handle;
+    servers = tp;
+}
+
+void addconnection(int handle, int is_ssl)
+{
+	dprint("Opened connection on socket %d; %s.\n", handle, (is_ssl ? "SSL Secured" : "Unsecured"));
+
+	struct connstruct *cs = malloc(sizeof(struct connstruct));
+
+	cs->next = connections;
+	cs->handle = handle;
+	cs->is_ssl = is_ssl;
+
+	connections = cs;
+}
+
 void close_handle(int handle)
 {
 	shutdown(handle, SHUT_RDWR);
 	close(handle);
+}
+
+void removeconnection(struct connstruct *cs)
+{
+    struct connstruct *tp;
+    int shouldret = 0;
+
+    tp = connections;
+
+    if (tp == NULL || cs == NULL)
+        shouldret = 1;
+    else if (tp == cs)
+    	connections = tp->next;
+    else
+    {
+        while (tp != NULL)
+        {
+            if (tp->next == cs)
+            {
+                tp->next = (tp->next)->next;
+                shouldret = 0;
+                break;
+            }
+
+            tp = tp->next;
+            shouldret = 1;
+        }
+    }
+
+    if (shouldret)
+        return;
+
+	if (cs->is_ssl)
+	{
+		//ssl_free(cs->ssl);
+		//cs->ssl = NULL;
+	}
+
+	close_handle(cs->handle);
+
+	free(cs);
 }
 
 int init_server_socket(uint16_t port)
@@ -201,12 +301,11 @@ int process_incoming_connections(int server_socket, int secured_server_socket)
 		return -1;
 	}
 
-	struct epoll_event evs;
-	evs.events = EPOLLIN;
-	evs.data.u64 = 0LL;
-	evs.data.fd = secured_server_socket;
+	ev.events = EPOLLIN;
+	ev.data.u64 = 0LL;
+	ev.data.fd = secured_server_socket;
 
-	if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, secured_server_socket, &evs) < 0)
+	if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, secured_server_socket, &ev) < 0)
 	{
 		fprintf(stderr, "Couldn't add secured server socket %d to epoll set: %m\n",
 				secured_server_socket);
@@ -265,6 +364,8 @@ int process_incoming_connections(int server_socket, int secured_server_socket)
 					socklen_t clientaddr_size = sizeof(clientaddr);
 					char buffer[1024];
 
+					int is_ssl = (handle == secured_server_socket);
+
 					while ((client_socket = accept(handle,
 							(struct sockaddr *) &clientaddr, &clientaddr_size))
 							< 0)
@@ -278,6 +379,8 @@ int process_incoming_connections(int server_socket, int secured_server_socket)
 							return -1;
 						}
 					}
+
+					addconnection(client_socket, is_ssl);
 
 					if (inet_ntop(AF_INET, &clientaddr.sin_addr.s_addr, buffer,
 							sizeof(buffer)) != NULL)
@@ -313,10 +416,20 @@ int process_incoming_connections(int server_socket, int secured_server_socket)
 				}
 				else
 				{
-					if (read_incoming_data(handle) <= 0)
+					struct connstruct *cs = connections;
+					while (cs != NULL)
+					{
+						if (handle == cs->handle)
+						{
+							break;
+						}
+						cs = cs->next;
+					}
+
+					if (read_incoming_data(cs) <= 0)
 					{
 						pollsize--;
-						close_handle(handle);
+						removeconnection(cs);
 						continue;
 					}
 				}
@@ -325,7 +438,17 @@ int process_incoming_connections(int server_socket, int secured_server_socket)
 			{
 				if (handle != server_socket && handle != secured_server_socket)
 				{
-					if (write_response(handle) <= 0)
+					struct connstruct *cs = connections;
+					while (cs != NULL)
+					{
+						if (handle == cs->handle)
+						{
+							break;
+						}
+						cs = cs->next;
+					}
+
+					if (write_response(cs) <= 0)
 					{
 						pollsize--;
 						close_handle(handle);
