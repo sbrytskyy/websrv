@@ -12,7 +12,7 @@
 
 #include "ssl.h"
 
-#define MAX_PACKET_SIZE 1024
+#define MAX_PACKET_SIZE	8800  /* FF3=4096, IE7=8760 */
 
 #define CONFIG_HTTP_DEFAULT_SSL_OPTIONS     SSL_DISPLAY_CERTS
 

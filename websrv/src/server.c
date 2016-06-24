@@ -61,32 +61,35 @@ int read_incoming_data(struct connstruct *cs)
 	{
 		fprintf(stderr, "Error reading socket %d: %m\n", cs->handle);
 	}
-	else if (nbytes == 0)
+	else if (nbytes == 0 && (cs->is_ssl == 0))
 	{
 		dprint("Socket %d has been closed by client: %m\n", cs->handle);
 	}
 	else
 	{
-		buffer[nbytes] = '\0';
-		dprint("Received message [%s], length: %d\n\n", buffer, nbytes);
-		dprint("Received bytes: %d\n", nbytes);
-
-		struct socket_context* sc = create_socket_context(cs->handle,
-				buffer);
-
-		if (sc == NULL)
+		if (nbytes > 0)
 		{
-			fprintf(stderr, "Error creating socket context. Socket=%d\n",
-					cs->handle);
-			return -1;
-		}
+			buffer[nbytes] = '\0';
+			dprint("Received message [%s], length: %d\n\n", buffer, nbytes);
+			dprint("Received bytes: %d\n", nbytes);
 
-		int result = add_input(sc);
-		if (result == -1)
-		{
-			fprintf(stderr, "Error adding input data to storage. Socket=%d\n",
-					cs->handle);
-			return -1;
+			struct socket_context* sc = create_socket_context(cs->handle,
+					buffer);
+
+			if (sc == NULL)
+			{
+				fprintf(stderr, "Error creating socket context. Socket=%d\n",
+						cs->handle);
+				return -1;
+			}
+
+			int result = add_input(sc);
+			if (result == -1)
+			{
+				fprintf(stderr, "Error adding input data to storage. Socket=%d\n",
+						cs->handle);
+				return -1;
+			}
 		}
 	}
 	return nbytes;
