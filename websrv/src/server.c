@@ -440,8 +440,11 @@ int process_incoming_connections(int server_socket, int secured_server_socket)
 
 					if (read_incoming_data(cs) <= 0)
 					{
-						pollsize--;
-						removeconnection(cs);
+						if (cs->is_ssl == 0)
+						{
+							pollsize--;
+							removeconnection(cs);
+						}
 						continue;
 					}
 				}

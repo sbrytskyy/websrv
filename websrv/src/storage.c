@@ -102,7 +102,7 @@ struct socket_context* create_socket_context(int client_socket, char* buffer)
 	if (sc != NULL)
 	{
 		sc->client_socket = client_socket;
-		sc->request = malloc(strlen(buffer));
+		sc->request = malloc(strlen(buffer) + 1);
 		if (sc->request == NULL)
 		{
 			free(sc);
