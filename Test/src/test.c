@@ -11,7 +11,7 @@
 char response[] =
 		"GET / HTTP/1.1\r\nHost: localhost:8080\r\nUser-Agent: Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:46.0) Gecko/20100101 Firefox/46.0\r\nAccept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8\r\n";
 
-int main() {
+int test_token() {
 	char *token = NULL;
 	token = strtok(response, "\r\n");
 	if (token) {
@@ -23,5 +23,16 @@ int main() {
 		token = strtok(NULL, " ");
 		printf("Protocol: %s\n", token);
 	}
+	return 0;
+}
+
+int main()
+{
+	char* cn = NULL;
+	int cmp = strcmp("Hello", cn);
+	printf("cmp: %d\n", cmp);
+
+	printf("End\n");
+
 	return 0;
 }
