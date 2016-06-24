@@ -23,21 +23,19 @@
 
 int runServer()
 {
-	int server_sockets[2];
-
-	server_sockets[0] = init_server_socket(DEFAULT_SERVER_PORT);
-	if (server_sockets[0] < 0)
+	int server_socket = init_server_socket(DEFAULT_SERVER_PORT);
+	if (server_socket < 0)
 	{
 		return EXIT_FAILURE;
 	}
 
-	server_sockets[1] = init_server_socket(DEFAULT_SECURED_SERVER_PORT);
-	if (server_sockets[1] < 0)
+	int secured_server_socket = init_server_socket(DEFAULT_SECURED_SERVER_PORT);
+	if (secured_server_socket < 0)
 	{
 		return EXIT_FAILURE;
 	}
 
-	dprint("Server socket initialized successfully.\n");
+	dprint("Server sockets initialized successfully.\n");
 
 	int result = init_context_storage();
 	if (result == -1)
@@ -52,7 +50,7 @@ int runServer()
 		return -1;
 	}
 
-	process_incoming_connections(server_sockets);
+	process_incoming_connections(server_socket, secured_server_socket);
 
 	stop_workers();
 	destroy_context_storage();

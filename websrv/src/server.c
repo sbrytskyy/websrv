@@ -173,30 +173,45 @@ int init_server_socket(uint16_t port)
 	return handle;
 }
 
-// todo Change from handle array to structure with ssl marker
-int process_incoming_connections(int server_sockets[])
+int process_incoming_connections(int server_socket, int secured_server_socket)
 {
 	int pollsize = 1;
 
-	struct epoll_event ev;
 	struct epoll_event epoll_events[EPOLL_ARRAY_SIZE];
 
 	if ((epoll_fd = epoll_create(pollsize)) < 0)
 	{
 		fprintf(stderr, "Could not create the epoll of file descriptors: %m\n");
-		close_handle(server_sockets[0]);
+		close_handle(server_socket);
+		close_handle(secured_server_socket);
 		return 1;
 	}
 
+	struct epoll_event ev;
 	ev.events = EPOLLIN;
 	ev.data.u64 = 0LL;
-	ev.data.fd = server_sockets[0];
+	ev.data.fd = server_socket;
 
-	if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, server_sockets[0], &ev) < 0)
+	if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, server_socket, &ev) < 0)
 	{
 		fprintf(stderr, "Couldn't add server socket %d to epoll set: %m\n",
-				server_sockets[0]);
-		close_handle(server_sockets[0]);
+				server_socket);
+		close_handle(server_socket);
+		close_handle(secured_server_socket);
+		return -1;
+	}
+
+	struct epoll_event evs;
+	evs.events = EPOLLIN;
+	evs.data.u64 = 0LL;
+	evs.data.fd = secured_server_socket;
+
+	if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, secured_server_socket, &evs) < 0)
+	{
+		fprintf(stderr, "Couldn't add secured server socket %d to epoll set: %m\n",
+				secured_server_socket);
+		close_handle(server_socket);
+		close_handle(secured_server_socket);
 		return -1;
 	}
 
@@ -212,7 +227,8 @@ int process_incoming_connections(int server_sockets[])
 			{
 				fprintf(stderr, "EPoll on %d file descriptors failed: %m\n",
 						pollsize);
-				close_handle(server_sockets[0]);
+				close_handle(server_socket);
+				close_handle(secured_server_socket);
 				return -1;
 			}
 		}
@@ -225,11 +241,12 @@ int process_incoming_connections(int server_sockets[])
 			if ((events & EPOLLERR) || (events & EPOLLHUP)
 					|| (events & EPOLLRDHUP))
 			{
-				if (handle == server_sockets[0])
+				if (handle == server_socket || handle == secured_server_socket)
 				{
 					fprintf(stderr, "EPoll on %d file descriptors failed: %m\n",
 							pollsize);
-					close_handle(server_sockets[0]);
+					close_handle(server_socket);
+					close_handle(secured_server_socket);
 					return -1;
 				}
 				else
@@ -241,22 +258,23 @@ int process_incoming_connections(int server_sockets[])
 			}
 			else if (events & EPOLLIN)
 			{
-				if (handle == server_sockets[0])
+				if (handle == server_socket || handle == secured_server_socket)
 				{
 					int client_socket;
 					struct sockaddr_in clientaddr;
 					socklen_t clientaddr_size = sizeof(clientaddr);
 					char buffer[1024];
 
-					while ((client_socket = accept(server_sockets[0],
+					while ((client_socket = accept(handle,
 							(struct sockaddr *) &clientaddr, &clientaddr_size))
 							< 0)
 					{
 						if ((client_socket < 0) && (errno != EINTR))
 						{
 							fprintf(stderr, "Accept on socket %d failed: %m\n",
-									server_sockets[0]);
-							close_handle(server_sockets[0]);
+									handle);
+							close_handle(server_socket);
+							close_handle(secured_server_socket);
 							return -1;
 						}
 					}
@@ -286,7 +304,8 @@ int process_incoming_connections(int server_sockets[])
 						stderr,
 								"Couldn't add client socket %d to epoll set: %m\n",
 								client_socket);
-						close_handle(server_sockets[0]);
+						close_handle(server_socket);
+						close_handle(secured_server_socket);
 						return -1;
 					}
 
@@ -304,7 +323,7 @@ int process_incoming_connections(int server_sockets[])
 			}
 			else if (events & EPOLLOUT)
 			{
-				if (handle != server_sockets[0])
+				if (handle != server_socket && handle != secured_server_socket)
 				{
 					if (write_response(handle) <= 0)
 					{
@@ -323,7 +342,8 @@ int process_incoming_connections(int server_sockets[])
 							printf(
 									"Couldn't modify client socket %d in epoll set: %m\n",
 									handle);
-							close_handle(server_sockets[0]);
+							close_handle(server_socket);
+							close_handle(secured_server_socket);
 						}
 					}
 				}
@@ -331,7 +351,8 @@ int process_incoming_connections(int server_sockets[])
 		}
 	}
 
-	close_handle(server_sockets[0]);
+	close_handle(server_socket);
+	close_handle(secured_server_socket);
 
 	return 0;
 }
