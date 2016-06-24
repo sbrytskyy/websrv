@@ -1228,7 +1228,10 @@ static int special_write(struct connstruct *cn,
     if (cn->is_ssl)
     {
         SSL *ssl = cn->ssl;
-        return ssl ? ssl_write(ssl, (uint8_t *)buf, count) : -1;
+        int res = ssl ? ssl_write(ssl, (uint8_t *)buf, count) : -1;
+
+        fprintf(stdout, "special_write res: %d\n", res);
+        return res;
     }
     else
         return SOCKET_WRITE(cn->networkdesc, buf, count);
@@ -1245,6 +1248,7 @@ static int special_read(struct connstruct *cn, void *buf, size_t count)
         {
             memcpy(buf, read_buf, res > (int)count ? count : res);
         }
+        fprintf(stdout, "special_read res: %d\n", res);
     }
     else
         res = SOCKET_READ(cn->networkdesc, buf, count);
