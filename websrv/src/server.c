@@ -24,7 +24,7 @@
 
 int epoll_fd;
 
-struct serverstruct *servers;
+SSL_CTX *ssl_ctx;
 struct connstruct *connections;
 
 // todo rework buffer handling
@@ -44,7 +44,13 @@ int read_incoming_data(struct connstruct *cs)
 	{
 		// todo add ssl support
 		dprint("Socket %d is secured. SSL will be added.\n", cs->handle);
-		nbytes = read(cs->handle, buffer, sizeof(buffer));
+		//nbytes = read(cs->handle, buffer, sizeof(buffer));
+        uint8_t *read_buf;
+        if ((nbytes = ssl_read(cs->ssl, &read_buf)) > SSL_OK)
+        {
+            memcpy(buffer, read_buf, nbytes > (int)sizeof(buffer) ? sizeof(buffer) : nbytes);
+        }
+
 	}
 	else
 	{
@@ -62,7 +68,7 @@ int read_incoming_data(struct connstruct *cs)
 	else
 	{
 		buffer[nbytes] = '\0';
-		//dprint("Received message [%s], length: %d\n\n", buffer, nbytes);
+		dprint("Received message [%s], length: %d\n\n", buffer, nbytes);
 		dprint("Received bytes: %d\n", nbytes);
 
 		struct socket_context* sc = create_socket_context(cs->handle,
@@ -122,7 +128,11 @@ int write_response(struct connstruct *cs)
 	{
 		if (cs->is_ssl)
 		{
-			result = send(cs->handle, sc->response, sc->response_len, 0);
+			//result = send(cs->handle, sc->response, sc->response_len, 0);
+
+	        SSL *ssl = cs->ssl;
+	        result = ssl ? ssl_write(ssl, (uint8_t *)sc->response, sc->response_len) : -1;
+
 			dprint("[write_response] using secured SSL connection.\n");
 			//dprint("[write_response] using SSL connection: [%s]\n", sc->response);
 		}
@@ -148,15 +158,6 @@ int write_response(struct connstruct *cs)
 	return result;
 }
 
-void addtoservers(int handle)
-{
-    struct serverstruct *tp = (struct serverstruct *)
-                            calloc(1, sizeof(struct serverstruct));
-    tp->next = servers;
-    tp->handle = handle;
-    servers = tp;
-}
-
 void addconnection(int handle, int is_ssl)
 {
 	dprint("Opened connection on socket %d; %s.\n", handle, (is_ssl ? "SSL Secured" : "Unsecured"));
@@ -166,6 +167,11 @@ void addconnection(int handle, int is_ssl)
 	cs->next = connections;
 	cs->handle = handle;
 	cs->is_ssl = is_ssl;
+
+	if (is_ssl)
+	{
+		cs->ssl = ssl_server_new(ssl_ctx, handle);
+	}
 
 	connections = cs;
 }
@@ -208,8 +214,8 @@ void removeconnection(struct connstruct *cs)
 
 	if (cs->is_ssl)
 	{
-		//ssl_free(cs->ssl);
-		//cs->ssl = NULL;
+		ssl_free(cs->ssl);
+		cs->ssl = NULL;
 	}
 
 	close_handle(cs->handle);
@@ -275,6 +281,9 @@ int init_server_socket(uint16_t port)
 
 int process_incoming_connections(int server_socket, int secured_server_socket)
 {
+	uint32_t options = CONFIG_HTTP_DEFAULT_SSL_OPTIONS;
+	ssl_ctx = ssl_ctx_new(options, CONFIG_HTTP_SESSION_CACHE_SIZE);
+
 	int pollsize = 1;
 
 	struct epoll_event epoll_events[EPOLL_ARRAY_SIZE];
@@ -474,6 +483,7 @@ int process_incoming_connections(int server_socket, int secured_server_socket)
 		}
 	}
 
+	ssl_ctx_free(ssl_ctx);
 	close_handle(server_socket);
 	close_handle(secured_server_socket);
 

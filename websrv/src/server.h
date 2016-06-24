@@ -10,14 +10,17 @@
 
 #include <stdint.h>
 
+#include "ssl.h"
+
 #define MAX_PACKET_SIZE 1024
 
+#define CONFIG_HTTP_DEFAULT_SSL_OPTIONS     SSL_DISPLAY_CERTS
 
 struct connstruct
 {
     struct connstruct *next;
     int handle;
-    //SSL *ssl;
+    SSL *ssl;
     uint8_t is_ssl;
 };
 
