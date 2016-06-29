@@ -16,20 +16,12 @@
 
 #define CONFIG_HTTP_DEFAULT_SSL_OPTIONS     SSL_DISPLAY_CERTS
 
-struct connstruct
+struct connection_info
 {
-    struct connstruct *next;
+    struct connection_info *next;
     int handle;
     SSL *ssl;
     uint8_t is_ssl;
-};
-
-struct serverstruct
-{
-    struct serverstruct *next;
-    int handle;
-    int is_ssl;
-//    SSL_CTX *ssl_ctx;
 };
 
 int init_server_socket(uint16_t port);

@@ -20,17 +20,20 @@
 #include "server.h"
 #include "utils.h"
 
-#define EPOLL_ARRAY_SIZE   64
+#define EPOLL_ARRAY_SIZE 64
+
+#define CONNECTION_CACHE_SIZE 32
 
 int epoll_fd;
 
 SSL_CTX *ssl_ctx;
-struct connstruct *connections;
+struct connection_info *connections;
+struct connection_info *connections_cache;
 
 // todo rework buffer handling
 char buffer[MAX_PACKET_SIZE];
 
-int read_incoming_data(struct connstruct *cs)
+int read_incoming_data(struct connection_info *cs)
 {
 	int nbytes = -1;
 
@@ -114,7 +117,7 @@ int set_socket_write_mode(int client_socket)
 	return result;
 }
 
-int write_response(struct connstruct *cs)
+int write_response(struct connection_info *cs)
 {
 	if (cs == NULL)
 	{
@@ -165,18 +168,26 @@ void addconnection(int handle, int is_ssl)
 {
 	dprint("Opened connection on socket %d; %s.\n", handle, (is_ssl ? "SSL Secured" : "Unsecured"));
 
-	struct connstruct *cs = malloc(sizeof(struct connstruct));
+	struct connection_info *cn;
 
-	cs->next = connections;
-	cs->handle = handle;
-	cs->is_ssl = is_ssl;
+	if (connections_cache == NULL)
+		cn = malloc(sizeof(struct connection_info));
+    else
+    {
+        cn = connections_cache;
+        connections_cache = cn->next;
+    }
+
+	cn->next = connections;
+	cn->handle = handle;
+	cn->is_ssl = is_ssl;
 
 	if (is_ssl)
 	{
-		cs->ssl = ssl_server_new(ssl_ctx, handle);
+		cn->ssl = ssl_server_new(ssl_ctx, handle);
 	}
 
-	connections = cs;
+	connections = cn;
 }
 
 void close_handle(int handle)
@@ -185,22 +196,22 @@ void close_handle(int handle)
 	close(handle);
 }
 
-void removeconnection(struct connstruct *cs)
+void removeconnection(struct connection_info *cn)
 {
-    struct connstruct *tp;
+    struct connection_info *tp;
     int shouldret = 0;
 
     tp = connections;
 
-    if (tp == NULL || cs == NULL)
+    if (tp == NULL || cn == NULL)
         shouldret = 1;
-    else if (tp == cs)
+    else if (tp == cn)
     	connections = tp->next;
     else
     {
         while (tp != NULL)
         {
-            if (tp->next == cs)
+            if (tp->next == cn)
             {
                 tp->next = (tp->next)->next;
                 shouldret = 0;
@@ -215,15 +226,16 @@ void removeconnection(struct connstruct *cs)
     if (shouldret)
         return;
 
-	if (cs->is_ssl)
+    cn->next = connections_cache;
+    connections_cache = cn;
+
+	if (cn->is_ssl)
 	{
-		ssl_free(cs->ssl);
-		cs->ssl = NULL;
+		ssl_free(cn->ssl);
+		cn->ssl = NULL;
 	}
 
-	close_handle(cs->handle);
-
-	free(cs);
+	close_handle(cn->handle);
 }
 
 int init_server_socket(uint16_t port)
@@ -282,8 +294,33 @@ int init_server_socket(uint16_t port)
 	return handle;
 }
 
+int init_connection_cache()
+{
+	struct connection_info *cn;
+    for (int i = 0; i < CONNECTION_CACHE_SIZE; i++)
+    {
+    	cn = connections_cache;
+        connections_cache = malloc(sizeof(struct connection_info));
+        if (connections_cache == NULL)
+        {
+        	return -1;
+        }
+        connections_cache->next = cn;
+    }
+
+    return 0;
+}
+
 int process_incoming_connections(int server_socket, int secured_server_socket)
 {
+	if (init_connection_cache() < 0)
+	{
+		perror("Error init cache.");
+		close_handle(server_socket);
+		close_handle(secured_server_socket);
+		return -1;
+	}
+
 	uint32_t options = CONFIG_HTTP_DEFAULT_SSL_OPTIONS;
 	ssl_ctx = ssl_ctx_new(options, CONFIG_HTTP_SESSION_CACHE_SIZE);
 
@@ -296,7 +333,7 @@ int process_incoming_connections(int server_socket, int secured_server_socket)
 		fprintf(stderr, "Could not create the epoll of file descriptors: %m\n");
 		close_handle(server_socket);
 		close_handle(secured_server_socket);
-		return 1;
+		return 11;
 	}
 
 	struct epoll_event ev;
@@ -428,7 +465,7 @@ int process_incoming_connections(int server_socket, int secured_server_socket)
 				}
 				else
 				{
-					struct connstruct *cs = connections;
+					struct connection_info *cs = connections;
 					while (cs != NULL)
 					{
 						if (handle == cs->handle)
@@ -453,7 +490,7 @@ int process_incoming_connections(int server_socket, int secured_server_socket)
 			{
 				if (handle != server_socket && handle != secured_server_socket)
 				{
-					struct connstruct *cs = connections;
+					struct connection_info *cs = connections;
 					while (cs != NULL)
 					{
 						if (handle == cs->handle)
