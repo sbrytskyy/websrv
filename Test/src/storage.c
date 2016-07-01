@@ -17,6 +17,8 @@
 struct socket_context* incoming_queue;
 struct socket_context* output_list;
 
+struct socket_context* storage_cache;
+
 int add(struct socket_context* storage, struct socket_context* sc);
 struct socket_context* find(struct socket_context* storage, int sock);
 
@@ -28,6 +30,25 @@ pthread_cond_t empty_outqueue_cv;
 
 int init_storage()
 {
+	struct socket_context *cs;
+    for (int i = 0; i < STORAGE_CACHE_SIZE; i++)
+    {
+    	cs = storage_cache;
+    	storage_cache = malloc(sizeof(struct socket_context));
+        if (storage_cache == NULL)
+        {
+        	return -1;
+        }
+        storage_cache->request = malloc(MAX_PACKET_SIZE + 1);
+		if (storage_cache->request == NULL)
+		{
+			free(storage_cache);
+			return NULL;
+		}
+
+        storage_cache->next = cs;
+    }
+
 	pthread_mutex_init(&inqueue_mutex, NULL);
 	pthread_cond_init(&empty_inqueue_cv, NULL);
 
@@ -50,18 +71,28 @@ int cleanup_storage()
 
 struct socket_context* create_socket_context(int client_socket, char* buffer)
 {
-	// todo rework using pool of objects
+	struct socket_context* sc;
 
-	struct socket_context* sc = malloc(sizeof(struct socket_context));
-	if (sc != NULL)
+	if (storage_cache == NULL)
 	{
-		sc->client_socket = client_socket;
+		sc = malloc(sizeof(struct socket_context));
 		sc->request = malloc(MAX_PACKET_SIZE + 1);
 		if (sc->request == NULL)
 		{
 			free(sc);
 			return NULL;
 		}
+	}
+    else
+    {
+    	sc = storage_cache;
+        storage_cache = sc->next;
+        sc->next = NULL;
+    }
+
+	if (sc != NULL)
+	{
+		sc->client_socket = client_socket;
 		strcpy(sc->request, buffer);
 		sc->response = NULL;
 		sc->close_after_response = 0;
@@ -72,15 +103,19 @@ struct socket_context* create_socket_context(int client_socket, char* buffer)
 
 void destroy_socket_context(struct socket_context* sc)
 {
+	sc->next = storage_cache;
+	storage_cache = sc;
+
 	if (sc->response)
 	{
 		free(sc->response);
 	}
-	if (sc->request)
-	{
-		free(sc->request);
-	}
-	free(sc);
+
+//	if (sc->request)
+//	{
+//		free(sc->request);
+//	}
+//	free(sc);
 }
 
 int add_input(struct socket_context* sc)
