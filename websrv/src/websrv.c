@@ -15,7 +15,6 @@
 #include "server.h"
 #include "storage.h"
 #include "worker.h"
-#include "test.h"
 #include "utils.h"
 
 #define DEFAULT_SERVER_PORT 8080
@@ -62,6 +61,5 @@ int main(void)
 #ifdef DEBUG
 	setvbuf(stdout, NULL, _IONBF, 0);
 #endif
-//	return test_storage();
 	return runServer();
 }
