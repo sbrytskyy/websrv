@@ -11,7 +11,7 @@
 
 int test_storage()
 {
-	init_context_storage();
+	init_storage();
 
 	for (int i = 0; i < 100; i++)
 	{
@@ -25,12 +25,12 @@ int test_storage()
 
 	struct socket_context* sc;
 
-	while ((sc = get_first_input()) != NULL)
+	while ((sc = poll_first_input()) != NULL)
 	{
 		printf("Request: [%s]\n", sc->request);
 	}
 
-	destroy_context_storage();
+	cleanup_storage();
 	return 0;
 }
 

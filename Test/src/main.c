@@ -39,9 +39,7 @@ void test_smth()
 
 int main()
 {
-#ifdef DEBUG
 	setvbuf(stdout, NULL, _IONBF, 0);
-#endif
 
 	test_storage();
 
