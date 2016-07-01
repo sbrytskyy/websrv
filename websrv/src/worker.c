@@ -18,7 +18,7 @@
 #include "utils.h"
 
 static void * worker_thread(void *);
-#define NUMBER_OF_WORKERS 3
+#define NUMBER_OF_WORKERS 1
 
 volatile int thread_state = 0; // 0: normal, -1: stop thread, 1: do something
 

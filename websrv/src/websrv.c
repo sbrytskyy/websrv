@@ -36,7 +36,7 @@ int runServer()
 
 	dprint("Server sockets initialized successfully.\n");
 
-	int result = init_context_storage();
+	int result = init_storage();
 	if (result == -1)
 	{
 		perror("Error creating contex storage.");
@@ -52,7 +52,7 @@ int runServer()
 	process_incoming_connections(server_socket, secured_server_socket);
 
 	stop_workers();
-	destroy_context_storage();
+	cleanup_storage();
 	pthread_exit(EXIT_SUCCESS);
 }
 
