@@ -71,30 +71,30 @@ int cleanup_storage()
 
 struct socket_context* create_socket_context(int client_socket, char* buffer)
 {
-	struct socket_context* sc;
+	struct socket_context* sc = NULL;
 
-//	if (storage_cache == NULL)
-//	{
+	if (storage_cache == NULL)
+	{
 		sc = malloc(sizeof(struct socket_context));
 		if (sc == NULL)
 		{
 			return NULL;
 		}
-//		sc->request = malloc(MAX_PACKET_SIZE + 1);
-		sc->request = malloc(strlen(buffer) + 1);
+		sc->request = malloc(MAX_PACKET_SIZE + 1);
+//		sc->request = malloc(strlen(buffer) + 1);
 		if (sc->request == NULL)
 		{
 			free(sc);
 			return NULL;
 		}
 		sc->next = NULL;
-//	}
-//    else
-//    {
-//    	sc = storage_cache;
-//        storage_cache = sc->next;
-//        sc->next = NULL;
-//    }
+	}
+    else
+    {
+    	sc = storage_cache;
+        storage_cache = sc->next;
+        sc->next = NULL;
+    }
 
 	if (sc != NULL)
 	{
@@ -109,19 +109,19 @@ struct socket_context* create_socket_context(int client_socket, char* buffer)
 
 void destroy_socket_context(struct socket_context* sc)
 {
-//	sc->next = storage_cache;
-//	storage_cache = sc;
+	sc->next = storage_cache;
+	storage_cache = sc;
 
 	if (sc->response)
 	{
 		free(sc->response);
 	}
 
-	if (sc->request)
-	{
-		free(sc->request);
-	}
-	free(sc);
+//	if (sc->request)
+//	{
+//		free(sc->request);
+//	}
+//	free(sc);
 }
 
 int add_input(struct socket_context* sc)
@@ -195,7 +195,7 @@ struct socket_context* get_output(int client_socket)
 {
 	pthread_mutex_lock(&outqueue_mutex);
 
-	struct socket_context* sc;
+	struct socket_context* sc = NULL;
 
 	struct socket_context* tp = output_list;
 	struct socket_context* prev = NULL;
