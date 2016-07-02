@@ -198,14 +198,22 @@ void close_handle(int handle)
 
 void removeconnection(struct connection_info *cn)
 {
-    struct connection_info *tp;
+    if (cn == NULL)
+    {
+    	return;
+    }
+
+	struct connection_info *tp;
     int shouldret = 0;
 
     tp = connections;
 
-    if (tp == NULL || cn == NULL)
-        shouldret = 1;
-    else if (tp == cn)
+    if (tp == NULL)
+    {
+        return;
+    }
+
+    if (tp == cn)
     	connections = tp->next;
     else
     {

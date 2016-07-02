@@ -200,7 +200,7 @@ struct socket_context* get_output(int client_socket)
 	struct socket_context* tp = output_list;
 	struct socket_context* prev = NULL;
 
-	while (tp)
+	while (tp != NULL)
 	{
 		if (tp->client_socket == client_socket)
 		{
@@ -217,7 +217,7 @@ struct socket_context* get_output(int client_socket)
 	}
 	else
 	{
-		output_list = tp->next;
+		output_list = (tp != NULL ? tp->next : NULL);
 	}
 
 	if (sc != NULL)
