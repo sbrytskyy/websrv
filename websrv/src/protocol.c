@@ -100,7 +100,7 @@ int process_http(struct socket_context* sc, char* full_path)
 	char* index = strstr(sc->request, METHOD_GET);
 	if (index == sc->request)
 	{
-		struct http_context hc;
+		struct http_context hc = {0};
 		if (process_header(sc->request, &hc) == -1)
 		{
 			fprintf(stderr, "Error parsing request.\n");
