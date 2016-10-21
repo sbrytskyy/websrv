@@ -48,12 +48,11 @@ int read_incoming_data(struct connection_info *cs)
 		// todo add ssl support
 		dprint("Socket %d is secured. SSL will be added.\n", cs->handle);
 		//nbytes = read(cs->handle, buffer, sizeof(buffer));
-        uint8_t *read_buf = (uint8_t *)buffer;
-        if ((nbytes = ssl_read(cs->ssl, &read_buf)) < SSL_OK)
+        uint8_t *read_buf;
+        if ((nbytes = ssl_read(cs->ssl, &read_buf)) > SSL_OK)
         {
-    		fprintf(stderr, "Error reading the SSL data stream. %d: %m\n", cs->handle);
+            memcpy(buffer, read_buf, nbytes > (int)sizeof(buffer) ? sizeof(buffer) : nbytes);
         }
-
 	}
 	else
 	{
