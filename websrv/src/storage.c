@@ -101,6 +101,7 @@ struct socket_context* create_socket_context(int client_socket, char* buffer)
 		sc->client_socket = client_socket;
 		strcpy(sc->request, buffer);
 		sc->response = NULL;
+		sc->response_file = NULL;
 		sc->close_after_response = 0;
 	}
 
@@ -115,6 +116,11 @@ void destroy_socket_context(struct socket_context* sc)
 	if (sc->response)
 	{
 		free(sc->response);
+	}
+
+	if (sc->response_file)
+	{
+		free(sc->response_file);
 	}
 
 //	if (sc->request)

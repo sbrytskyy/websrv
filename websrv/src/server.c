@@ -15,6 +15,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <fcntl.h>
+#include <sys/mman.h>
 
 #include "storage.h"
 #include "server.h"
@@ -147,7 +148,43 @@ int write_response(struct connection_info *cs)
 			dprint("[write_response] using unsecured plain socket.\n");
 			//dprint("[write_response] using plain socket: [%s]\n", sc->response);
 		}
-		dprint("Sent %d bytes as response.\n", result);
+		dprint("Sent %d bytes as response header.\n", result);
+
+		// todo prepare and send response data
+		if (sc->response_file != NULL)
+		{
+			int fd = open(sc->response_file, O_RDONLY);
+			if (fd == -1)
+			{
+				fprintf(stderr, "Error opening file: %s; error - %m\n", sc->response_file);
+				return -1;
+			}
+
+			int data_len = lseek(fd, 0, SEEK_END);
+			char* data = mmap(0, data_len, PROT_READ, MAP_PRIVATE, fd, 0);
+
+			if (data)
+			{
+				if (cs->is_ssl)
+				{
+					SSL *ssl = cs->ssl;
+					result = ssl ? ssl_write(ssl, (uint8_t *)data, data_len) : -1;
+
+					dprint("[write_response] using secured SSL connection.\n");
+				}
+				else
+				{
+					result = send(cs->handle, data, data_len, 0);
+					dprint("[write_response] using unsecured plain socket.\n");
+				}
+				dprint("Sent %d bytes as response data.\n", result);
+
+				munmap(data, data_len);
+			}
+			close(fd);
+
+		}
+
 
 		if (result > 0 && sc->close_after_response == 1)
 		{

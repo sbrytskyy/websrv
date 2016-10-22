@@ -10,7 +10,6 @@
 #include <stdio.h>
 #include <fcntl.h>
 #include <unistd.h>
-#include <sys/mman.h>
 
 #include "protocol.h"
 #include "utils.h"
@@ -125,56 +124,53 @@ int process_http(struct socket_context* sc, char* full_path)
 			return -1;
 		}
 
+		size_t l = strlen(full_path);
+		sc->response_file = malloc(l + 1);
+		strcpy(sc->response_file, full_path);
+
 		int data_len = lseek(fd, 0, SEEK_END);
-		char* data = mmap(0, data_len, PROT_READ, MAP_PRIVATE, fd, 0);
+		char len_str[15];
+		sprintf(len_str, "%d", data_len);
 
-		if (data)
+		int persistance_connection = (hc.connection != NULL
+				&& strcmp(CONNECTION_KEEP_ALIVE, hc.connection) == 0);
+
+		if (persistance_connection == 0)
 		{
-			char len_str[15];
-			sprintf(len_str, "%d", data_len);
-
-			int persistance_connection = (hc.connection != NULL
-					&& strcmp(CONNECTION_KEEP_ALIVE, hc.connection) == 0);
-
-			if (persistance_connection == 0)
-			{
-				sc->close_after_response = 1;
-			}
-
-			int header_len = strlen(RESPONSE_HEADER_200_OK) + strlen(CRLF)
-						+ strlen(HEADER_CONTENT_TYPE) + 1 + strlen(hc.content_type) + strlen(CRLF)
-						+ strlen(HEADER_CONTENT_LENGTH) + 1 + strlen(len_str) + strlen(CRLF)
-						+ (persistance_connection != 0 ? strlen(HEADER_CONNECTION) + 1 + strlen(CONNECTION_KEEP_ALIVE) + strlen(CRLF) : 0)
-						+ strlen(CRLF);
-
-			sc->response = malloc(header_len + data_len);
-			if (sc->response != NULL)
-			{
-				strcpy(sc->response, RESPONSE_HEADER_200_OK);
-				strcat(sc->response, CRLF);
-				strcat(sc->response, HEADER_CONTENT_TYPE);
-				strcat(sc->response, " ");
-				strcat(sc->response, hc.content_type);
-				strcat(sc->response, CRLF);
-				strcat(sc->response, HEADER_CONTENT_LENGTH);
-				strcat(sc->response, " ");
-				strcat(sc->response, len_str);
-				strcat(sc->response, CRLF);
-				if (persistance_connection != 0)
-				{
-					strcat(sc->response, HEADER_CONNECTION);
-					strcat(sc->response, " ");
-					strcat(sc->response, CONNECTION_KEEP_ALIVE);
-					strcat(sc->response, CRLF);
-				}
-				strcat(sc->response, CRLF);
-				memcpy(sc->response + header_len, data, data_len);
-
-				sc->response_len = header_len + data_len;
-			}
-
-			munmap(data, data_len);
+			sc->close_after_response = 1;
 		}
+
+		int header_len = strlen(RESPONSE_HEADER_200_OK) + strlen(CRLF)
+					+ strlen(HEADER_CONTENT_TYPE) + 1 + strlen(hc.content_type) + strlen(CRLF)
+					+ strlen(HEADER_CONTENT_LENGTH) + 1 + strlen(len_str) + strlen(CRLF)
+					+ (persistance_connection != 0 ? strlen(HEADER_CONNECTION) + 1 + strlen(CONNECTION_KEEP_ALIVE) + strlen(CRLF) : 0)
+					+ strlen(CRLF);
+
+		sc->response = malloc(header_len);
+		if (sc->response != NULL)
+		{
+			strcpy(sc->response, RESPONSE_HEADER_200_OK);
+			strcat(sc->response, CRLF);
+			strcat(sc->response, HEADER_CONTENT_TYPE);
+			strcat(sc->response, " ");
+			strcat(sc->response, hc.content_type);
+			strcat(sc->response, CRLF);
+			strcat(sc->response, HEADER_CONTENT_LENGTH);
+			strcat(sc->response, " ");
+			strcat(sc->response, len_str);
+			strcat(sc->response, CRLF);
+			if (persistance_connection != 0)
+			{
+				strcat(sc->response, HEADER_CONNECTION);
+				strcat(sc->response, " ");
+				strcat(sc->response, CONNECTION_KEEP_ALIVE);
+				strcat(sc->response, CRLF);
+			}
+			strcat(sc->response, CRLF);
+
+			sc->response_len = header_len;
+		}
+
 		close(fd);
 	}
 	else
