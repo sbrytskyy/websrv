@@ -32,28 +32,3 @@ const char* get_root_dir()
 	}
 	return root_dir;
 }
-
-char* read_file(char* filename)
-{
-	char* buffer = 0;
-	FILE* f = fopen(filename, "rb");
-
-	if (f)
-	{
-		fseek(f, 0, SEEK_END);
-		long length = ftell(f);
-		fseek(f, 0, SEEK_SET);
-		buffer = malloc(length);
-		if (buffer)
-		{
-			size_t res = fread(buffer, 1, length, f);
-			if (res != length)
-			{
-				fprintf(stderr, "Error reading file: %s\n", filename);
-			}
-		}
-		fclose(f);
-	}
-
-	return buffer;
-}
