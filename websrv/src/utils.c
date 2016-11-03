@@ -32,3 +32,10 @@ const char* get_root_dir()
 	}
 	return root_dir;
 }
+
+int startsWith(const char *pre, const char *str)
+{
+    size_t lenpre = strlen(pre),
+           lenstr = strlen(str);
+    return lenstr < lenpre ? 0 : strncmp(pre, str, lenpre) == 0;
+}

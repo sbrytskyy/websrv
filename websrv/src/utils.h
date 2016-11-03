@@ -20,7 +20,7 @@
 #endif
 
 const char* get_root_dir();
-char* read_file(char* filename);
+int startsWith(const char *pre, const char *str);
 
 
 #endif /* UTILS_H_ */
